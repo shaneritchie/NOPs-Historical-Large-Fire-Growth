@@ -257,7 +257,9 @@ def score(df):
     df["Fuel_Gate"] = gate
     df["Concern"] = [None if s is None else ("Low" if g else [lbl for n0, lbl in CONCERN_LEVELS if s >= n0][-1])
                      for s, g in zip(df["Score_8"], gate)]
-    df["Hist_LGD_Rate_Pct"] = [HIST_LGD_RATE.get(p, {}).get(c) for p, c in zip(df.PSA, df.Concern)]
+    # Share of past fire-days at this level that were large growth days, counting only days
+    # when a large fire was already burning. Left blank on fuel-gated days (no comparable history).
+    df["Hist_LGD_Rate_Pct"] = [None if g else HIST_LGD_RATE.get(p, {}).get(c) for p, c, g in zip(df.PSA, df.Concern, gate)]
     df["Wind_Event"] = [int(r.GSpd >= THRESHOLDS.get(r.PSA, {}).get("_wind_event", (None, 999))[1])
                         if pd.notna(r.get("GSpd")) else 0 for _, r in df.iterrows()]
     return df

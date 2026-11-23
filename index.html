@@ -371,6 +371,14 @@ const row = (p,d) => ROWS.find(r=>r.PSA===p && r.Day===d);
 const lvlLabel = c => c ? `<span class="lvl"><i class="sw" style="background:var(--${LVL[c]})"></i>${c}</span>` : `<span class="muted">No data</span>`;
 const dayName = d => { const r = ROWS.find(x=>x.Day===d); if(!r) return d===0?"Today":"+"+d; const dt=new Date(r.Date+"T12:00:00"); return (d===0?"Obs ":"")+dt.toLocaleDateString([], {weekday:"short", month:"numeric", day:"numeric"}); };
 
+const MIN_N = 10;
+function rateText(psa, r){
+  if(!r || !r.Concern) return "";
+  if(r.Gate) return `Fuels are wetter than on 95% of past large growth days in ${psa} (ERC or 100-hr), so there's no comparable fire-season history to give a rate.`;
+  const H=HIST[psa], L=H.levels.find(l=>l.level===r.Concern);
+  if(!L || L.days<MIN_N || L.rate==null) return `Too few past ${psa} fire-days at ${r.Concern} (${L?L.days:0}) to give a reliable rate.`;
+  return `When a large fire was already burning in ${psa} at ${r.Concern}, ${Math.round(L.rate)}% of those fire-days were large growth days, against ${Math.round(H.base)}% on all ${psa} fire-days (${L.days.toLocaleString()} days, 2012–2026).`;
+}
 function render(){ renderDays(); renderMap(); renderOutlook(); renderWindOutlook(); renderDetail(); renderDist(); renderHist(); }
 
 function renderDays(){
@@ -408,7 +416,7 @@ function renderMap(){
   }
   $("map").innerHTML=svg+"</svg>";
   $("map").querySelectorAll("path[data-p]").forEach(el=>{
-    el.onmousemove=e=>{const p=el.dataset.p,r=row(p,sel.day); showTip(e, `<b>${p} – ${NAMES[p]||""}</b><br>${r?lvlLabel(r.Concern)+` · score ${r.Score}/8`+(r.Gate?"<br>⊘ Capped at Low: fuels not receptive":""):"No data"}${r&&r.Met.length?`<br>Over threshold: ${r.Met.join(", ")}`:""}${r&&r.Rate!=null?`<br>Historically ${r.Rate}% of fire-days at this level were large growth days`:""}`);};
+    el.onmousemove=e=>{const p=el.dataset.p,r=row(p,sel.day); showTip(e, `<b>${p} – ${NAMES[p]||""}</b><br>${r?lvlLabel(r.Concern)+` · score ${r.Score}/8`+(r.Gate?"<br>⊘ Capped at Low: fuels not receptive":""):"No data"}${r&&r.Met.length?`<br>Over threshold: ${r.Met.join(", ")}`:""}${r&&r.Concern?`<br><span style="color:var(--text-secondary)">${rateText(p,r)}</span>`:""}`);};
     el.onmouseleave=hideTip; el.onclick=()=>{sel.psa=el.dataset.p;render();};
   });
 }
@@ -438,7 +446,7 @@ function renderDetail(){
   const r=row(sel.psa,sel.day), th=CFG.TH[sel.psa];
   $("detailTitle").textContent=`${sel.psa} ${NAMES[sel.psa]||""} · ${r?r.Date:""}`;
   if(!r){ $("detail").innerHTML=""; $("detailNote").textContent="No data for this PSA and day."; return; }
-  $("detailNote").innerHTML=`${r.Type==="Observed"?`1300 LST observation, average of ${r.Stations} RAWS`:`FEMS forecast, average of ${r.Stations} RAWS (daily max/min values)`} · ${lvlLabel(r.Concern)} · score ${r.Score}/8${r.Gate?" · <b>⊘ capped at Low: fuels not receptive</b>":""} · historically ${r.Rate}% of ${sel.psa} fire-days at this level were large growth days.`;
+  $("detailNote").innerHTML=`${r.Type==="Observed"?`1300 LST observation, average of ${r.Stations} RAWS`:`FEMS forecast, average of ${r.Stations} RAWS (daily max/min values)`} · ${lvlLabel(r.Concern)} · score ${r.Score}/8${r.Gate?" · <b>⊘ capped at Low: fuels not receptive</b>":""}.<br>${rateText(sel.psa,r)}`;
   let h=`<thead><tr><th>Variable</th><th class="num">Value</th><th class="num">Threshold</th><th>Met</th></tr></thead><tbody>`;
   for (const [v,lab,op] of VARS){
     const x=r[v], t=th[v][1], has=x!=null&&!isNaN(x), met=r.Met.includes(v);
@@ -482,25 +490,27 @@ function niceMax(m){ if(!(m>0)) return 4; const raw=m/4, mag=10**Math.floor(Math
 function bars(el, labels, vals, opts){
   const W=opts.W||360,H=opts.H||210,L=34,B=28,T=18,max=opts.max||niceMax(Math.max(...vals.map(v=>v||0))*1.08);
   const bw=(W-L-10)/labels.length;
-  let svg=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${opts.aria}">`;
+  let svg=`<svg viewBox="0 0 ${W} ${H+(opts.sub?12:0)}" width="100%" role="img" aria-label="${opts.aria}"><defs><pattern id="thin" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="var(--grid)"/><line x1="0" y1="0" x2="0" y2="6" stroke="var(--muted)" stroke-width="2"/></pattern></defs>`;
   const ticks=4; for(let i=0;i<=ticks;i++){const v=max*i/ticks,y=H-B-(H-B-T)*i/ticks; svg+=`<line x1="${L}" x2="${W-6}" y1="${y}" y2="${y}" stroke="${i?"var(--grid)":"var(--axis)"}"/><text x="${L-5}" y="${y+4}" text-anchor="end" style="font-size:10px">${Math.round(v)}${opts.unit||""}</text>`;}
+  if(opts.ref){ const y=H-B-(H-B-T)*opts.ref[0]/max; svg+=`<line x1="${L}" x2="${W-6}" y1="${y}" y2="${y}" stroke="var(--text-secondary)" stroke-dasharray="4 3" pointer-events="none"/>`; }
   vals.forEach((v,i)=>{ if(v==null) return; const h=(H-B-T)*v/max, x=L+i*bw+bw*0.18, w=bw*0.64, y=H-B-h;
     const c=opts.colors?opts.colors[i]:"var(--series-1)";
     svg+=`<path d="M${x} ${H-B} V${y+Math.min(4,h)} Q${x} ${y} ${x+4} ${y} H${x+w-4} Q${x+w} ${y} ${x+w} ${y+Math.min(4,h)} V${H-B}Z" fill="${c}" data-t="${opts.tip(i)}"/>`;
-    if(opts.label) svg+=`<text x="${x+w/2}" y="${y-5}" text-anchor="middle" style="font-size:11px;fill:var(--text-primary)">${opts.label(v)}</text>`;
+    if(opts.label) svg+=`<text x="${x+w/2}" y="${y-5}" text-anchor="middle" style="font-size:11px;fill:var(--text-primary);paint-order:stroke;stroke:var(--surface-1);stroke-width:4px">${opts.label(v)}</text>`;
     svg+=`<rect x="${L+i*bw}" y="${T}" width="${bw}" height="${H-B-T}" fill="transparent" data-t="${opts.tip(i)}"/>`;
   });
-  labels.forEach((l,i)=>svg+=`<text x="${L+i*bw+bw/2}" y="${H-B+16}" text-anchor="middle" style="font-size:10.5px">${l}</text>`);
+  labels.forEach((l,i)=>svg+=`<text x="${L+i*bw+bw/2}" y="${H-B+16}" text-anchor="middle" style="font-size:10.5px">${l}</text>`+(opts.sub?`<text x="${L+i*bw+bw/2}" y="${H-B+28}" text-anchor="middle" style="font-size:9.5px;fill:var(--muted)">${opts.sub[i]}</text>`:""));
   el.innerHTML=svg+"</svg>";
   el.querySelectorAll("[data-t]").forEach(n=>{n.onmousemove=e=>showTip(e,n.dataset.t);n.onmouseleave=hideTip;});
 }
 
 function renderHist(){
   const H=HIST[sel.psa];
-  $("rateTitle").textContent=`${sel.psa}: how often fire-days became large growth days`;
-  $("rateNote").textContent=`Share of ${H.n.toLocaleString()} fire-days at each concern level that were large growth days (overall ${H.base}%). A rising pattern means the score is useful in this PSA.`;
-  bars($("rate"), LEVELS.map(l=>l[1]), H.levels.map(l=>l.rate), {max:100,unit:"%",aria:"Large growth rate by concern level",
-    colors:LEVELS.map(l=>`var(--${l[2]})`), label:v=>v+"%", tip:i=>`<b>${H.levels[i].level}</b><br>${H.levels[i].rate??"–"}% of ${H.levels[i].days} fire-days were large growth days`});
+  $("rateTitle").textContent=`${sel.psa}: when a large fire was already burning`;
+  $("rateNote").textContent=`Share of fire-days that became large growth days at each concern level, 2012–2026. Only days with a large fire already burning are counted, so this is not the chance of a large growth day on a day without fire. The dashed line is all ${sel.psa} fire-days (${Math.round(H.base)}%); bars above it mean the level raised the odds. Levels with fewer than ${MIN_N} days are hatched.`;
+  bars($("rate"), LEVELS.map(l=>l[1]), H.levels.map(l=>l.rate), {max:100,unit:"%",aria:"Large growth rate by concern level when a large fire was burning",
+    colors:LEVELS.map((l,i)=>H.levels[i].days<MIN_N?"url(#thin)":`var(--${l[2]})`), sub:H.levels.map(l=>`${l.days.toLocaleString()} days`), ref:[H.base,`all fire-days ${H.base}%`],
+    label:v=>Math.round(v)+"%", tip:i=>`<b>${H.levels[i].level}</b><br>${H.levels[i].rate==null?"–":Math.round(H.levels[i].rate)}% of ${H.levels[i].days.toLocaleString()} fire-days (with a large fire already burning) were large growth days<br>All ${sel.psa} fire-days: ${Math.round(H.base)}%${H.levels[i].days<MIN_N?"<br>Too few days for a reliable rate":""}`});
   $("monthTitle").textContent=`${sel.psa}: large growth days by month`;
   $("monthNote").textContent=`${H.nlgd.toLocaleString()} large growth days, 2012–2026.`;
   const M=["J","F","M","A","M","J","J","A","S","O","N","D"], MN=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
