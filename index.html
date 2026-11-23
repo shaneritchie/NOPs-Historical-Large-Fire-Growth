@@ -388,6 +388,26 @@ const lvlLabel = c => c ? `<span class="lvl"><i class="sw" style="background:var
 const dayName = d => { const r = ROWS.find(x=>x.Day===d); if(!r) return d===0?"Today":"+"+d; const dt=new Date(r.Date+"T12:00:00"); return (d===0?"Obs ":"")+dt.toLocaleDateString([], {weekday:"short", month:"numeric", day:"numeric"}); };
 
 const MIN_N = 10;
+/* Where today's ERC / 100-hr sits among the PSA's past large growth days, as counts. */
+function fuelCompare(psa, v, x){
+  const a = (typeof LGDF!=="undefined" && LGDF[psa]) ? LGDF[psa][v] : null;
+  if (x==null || isNaN(x) || !a || !a.length) return "";
+  const n=a.length, lower=a.filter(y=>y>x).length, higher=a.filter(y=>y<x).length;
+  const pct=k=>` (${Math.round(k/n*100)}%)`;
+  const label = v==="ERC" ? `ERC ${fmt(x)}` : `100-hr ${fmt(x)}%`;
+  if (v==="ERC"){
+    if (lower===n) return `${label}: lower than on all ${n} past ${psa} large growth days`;
+    if (higher===n) return `${label}: higher than on all ${n} past ${psa} large growth days`;
+    return lower>=higher ? `${label}: lower than on ${lower} of ${n} past ${psa} large growth days${pct(lower)}`
+                         : `${label}: higher than on ${higher} of ${n} past ${psa} large growth days${pct(higher)}`;
+  }
+  // 100-hr fuel moisture: higher = wetter
+  if (higher===n) return `${label}: wetter than on all ${n} past ${psa} large growth days`;
+  if (lower===n) return `${label}: drier than on all ${n} past ${psa} large growth days`;
+  return higher>=lower ? `${label}: wetter than on ${higher} of ${n} past ${psa} large growth days${pct(higher)}`
+                       : `${label}: drier than on ${lower} of ${n} past ${psa} large growth days${pct(lower)}`;
+}
+function fuelLines(psa, r){ return ["ERC","F100"].map(v=>fuelCompare(psa,v,r[v])).filter(Boolean).join("<br>"); }
 function rateText(psa, r){
   if(!r || !r.Concern) return "";
   if(r.Gate) return `Fuels are wetter than on 95% of past large growth days in ${psa} (ERC or 100-hr), so there's no comparable fire-season history to give a rate.`;
@@ -432,7 +452,7 @@ function renderMap(){
   }
   $("map").innerHTML=svg+"</svg>";
   $("map").querySelectorAll("path[data-p]").forEach(el=>{
-    el.onmousemove=e=>{const p=el.dataset.p,r=row(p,sel.day); showTip(e, `<b>${p} – ${NAMES[p]||""}</b><br>${r?lvlLabel(r.Concern)+` · score ${r.Score}/8`+(r.Gate?"<br>⊘ Capped at Low: fuels not receptive":""):"No data"}${r&&r.Met.length?`<br>Over threshold: ${r.Met.join(", ")}`:""}${r&&r.Concern?`<br><span style="color:var(--text-secondary)">${rateText(p,r)}</span>`:""}`);};
+    el.onmousemove=e=>{const p=el.dataset.p,r=row(p,sel.day); showTip(e, `<b>${p} – ${NAMES[p]||""}</b><br>${r?lvlLabel(r.Concern)+` · score ${r.Score}/8`+(r.Gate?"<br>⊘ Capped at Low: fuels not receptive":"")+(fuelLines(p,r)?"<br>"+fuelLines(p,r):""):"No data"}${r&&r.Met.length?`<br>Over threshold: ${r.Met.join(", ")}`:""}${r&&r.Concern?`<br><span style="color:var(--text-secondary)">${rateText(p,r)}</span>`:""}`);};
     el.onmouseleave=hideTip; el.onclick=()=>{sel.psa=el.dataset.p;render();};
   });
 }
@@ -453,7 +473,7 @@ function renderOutlook(){
   $("outlook").innerHTML=h+"</tbody>";
   $("outlook").querySelectorAll(".chip").forEach(c=>{
     c.onclick=()=>{sel.psa=c.dataset.p;sel.day=+c.dataset.d;render();};
-    c.onmousemove=e=>{const r=row(c.dataset.p,+c.dataset.d); if(!r) return; showTip(e,`<b>${r.PSA} · ${r.Date}</b> (${r.Type.toLowerCase()})<br>${lvlLabel(r.Concern)} · ${r.Met.length} of ${r.Possible} thresholds${r.Met.length?": "+r.Met.join(", "):""}${r.Gate?"<br>⊘ Capped at Low: fuels not receptive":""}<br>Peak gust ${fmt(r.GSpd)} mph · ERC ${fmt(r.ERC)} · min RH ${fmt(r.RH)}%${r.WindEvent?"<br>▲ Large wind event":""}`);};
+    c.onmousemove=e=>{const r=row(c.dataset.p,+c.dataset.d); if(!r) return; showTip(e,`<b>${r.PSA} · ${r.Date}</b> (${r.Type.toLowerCase()})<br>${lvlLabel(r.Concern)} · ${r.Met.length} of ${r.Possible} thresholds${r.Met.length?": "+r.Met.join(", "):""}${r.Gate?"<br>⊘ Capped at Low: fuels not receptive":""}${fuelLines(r.PSA,r)?"<br>"+fuelLines(r.PSA,r):""}<br>Peak gust ${fmt(r.GSpd)} mph · ERC ${fmt(r.ERC)} · ${r.Type==="Observed"?"RH at 1300":"min RH"} ${fmt(r.RH)}%${r.WindEvent?"<br>▲ Large wind event":""}`);};
     c.onmouseleave=hideTip;
   });
 }
@@ -471,7 +491,9 @@ function renderDetail(){
   const gE=r.ERC!=null&&r.ERC<th._gate_ERC[1], gF=r.F100!=null&&r.F100>th._gate_F100[1];
   h+=`<tr><td colspan="4" style="padding-top:12px;color:var(--text-secondary);font-size:12px">Fuel gate (caps the level at Low when either is met)</td></tr>`;
   h+=`<tr><td>ERC too low</td><td class="num">${fmt(r.ERC)}</td><td class="num">&lt; ${fmt(th._gate_ERC[1])}</td><td>${r.ERC==null?'<span class="muted">–</span>':gE?'<b>⊘ Yes</b>':'<span class="muted">No</span>'}</td></tr>`;
+  if (r.ERC!=null) h+=`<tr><td colspan="4" style="border-bottom:0;padding-top:0;color:var(--text-secondary);font-size:12px">${fuelCompare(sel.psa,"ERC",r.ERC)}</td></tr>`;
   h+=`<tr><td>100-hr FM too high</td><td class="num">${fmt(r.F100)}</td><td class="num">&gt; ${fmt(th._gate_F100[1])}</td><td>${r.F100==null?'<span class="muted">–</span>':gF?'<b>⊘ Yes</b>':'<span class="muted">No</span>'}</td></tr>`;
+  if (r.F100!=null) h+=`<tr><td colspan="4" style="padding-top:0;color:var(--text-secondary);font-size:12px">${fuelCompare(sel.psa,"F100",r.F100)}</td></tr>`;
   h+=`<tr><td colspan="4" style="padding-top:12px;color:var(--text-secondary);font-size:12px">Wind</td></tr>`;
   h+=`<tr><td>Large wind event</td><td class="num">${fmt(r.GSpd)}</td><td class="num">≥ ${fmt(th._wind_event[1])}</td><td>${r.GSpd==null?'<span class="muted">–</span>':r.WindEvent?'<span class="ok">✓ Yes</span>':'<span class="muted">No</span>'}</td></tr>`;
   h+=`<tr><td colspan="4" style="padding-top:12px;color:var(--text-secondary);font-size:12px">Other conditions</td></tr>`;
