@@ -2,6 +2,8 @@
 
 Script: `scripts/lfm_skill_test.js` (runs in a browser console on the GitHub Pages site).
 
+Note: run with the original large growth day flag, before large growth days were re-flagged with the ONCC threshold chart later the same day (DATA_DICTIONARY known issue 11).
+
 ## Data
 - **Source:** FEMS Field Sample database (measured live fuel moisture), public GraphQL at
   `https://fems.fs2c.usda.gov/fuelmodel/apis/graphql`.
