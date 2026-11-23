@@ -81,6 +81,7 @@ Concern levels describe how similar conditions are to past large growth days. Th
 | `data/removed_late_perimeter_records.csv` | 47 rows dated years after their fire (final perimeters re-saved later), removed |
 | `data/merged_duplicate_rows.csv` | The original rows of 228 fire-days that were split across 2–3 rows and merged |
 | `scripts/clean_dataset.py` | The clean-up that removed late perimeter records and merged same-day duplicate rows (safe to re-run) |
+| `data/Large_Fire_Growth_Threshold_Working.xlsx` | ONCC large fire growth threshold chart the flag is based on |
 | `scripts/flag_large_growth.py` | Sets the large growth day flag from the ONCC threshold chart: 25% of to-date acres, PSA minimums, capped at 10,000 ac (safe to re-run) |
 | `scripts/lfm_skill_test.js` | Live fuel moisture test (browser console); results in `data/LFM_TEST_RESULTS.md` |
 | `data/removed_rx_pile_burn_fire_days.csv` | 20 off-season fire-days removed as Rx or pile burns (see the data dictionary) |
