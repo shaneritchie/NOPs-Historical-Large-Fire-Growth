@@ -145,7 +145,7 @@ th.sort:hover{color:var(--text-primary)}
 
   <section class="card span-6">
     <h2 id="distTitle">Where this day sits in history</h2>
-    <p class="note">Bars show the middle half (25th–75th percentile) of each variable on large growth days and on other fire-days, 2012–2026; the tick is the median. The diamond is the selected day.</p>
+    <p class="note">For each variable, large growth days and other fire-days, 2012–2026: thin line = full range (lowest to highest), thicker line = 10th–90th percentile, bar = middle half (25th–75th), tick = median. The diamond is the selected day. Hover for values.</p>
     <div id="dist"></div>
     <div class="legend"><span><i class="sw" style="background:var(--series-2)"></i>Large growth days</span><span><i class="sw" style="background:var(--series-1)"></i>Other fire-days</span><span><svg width="12" height="12" viewBox="0 0 12 12"><path d="M6 1 L11 6 L6 11 L1 6Z" fill="var(--text-primary)"/></svg>Selected day</span></div>
   </section>
@@ -509,14 +509,19 @@ function renderDist(){
   let svg=`<svg viewBox="0 0 ${W} ${Ht}" width="100%" role="img" aria-label="Selected day compared with historical ranges">`;
   VARS.forEach(([v,lab],i)=>{
     const a=H.vars[v].lgd, b=H.vars[v].oth, x=r?r[v]:null;
-    const vals=[a[0],a[4],b[0],b[4]].concat(x!=null&&!isNaN(x)?[x]:[]);
-    let lo=Math.min(...vals), hi=Math.max(...vals); const pad=(hi-lo)*0.08||1; lo-=pad; hi+=pad;
+    const vals=[a[0],a[6],b[0],b[6]].concat(x!=null&&!isNaN(x)?[x]:[]);
+    let lo=Math.min(...vals), hi=Math.max(...vals); const pad=(hi-lo)*0.04||1; lo=Math.max(lo-pad, Math.min(...vals)>=0?0:-1e9); hi+=pad;
     const X=t=>L+(t-lo)/(hi-lo)*(W-L-R), y=12+i*rowH;
     svg+=`<text x="0" y="${y+15}">${lab}</text><line x1="${L}" x2="${W-R}" y1="${y+rowH-4}" y2="${y+rowH-4}" stroke="var(--grid)"/>`;
     svg+=`<text x="${L}" y="${y+rowH-7}" style="font-size:9.5px">${fmt(lo)}</text><text x="${W-R}" y="${y+rowH-7}" text-anchor="end" style="font-size:9.5px">${fmt(hi)}</text>`;
     [[a,"var(--series-2)",y+3,"Large growth days"],[b,"var(--series-1)",y+13,"Other fire-days"]].forEach(([q,c,yy,name])=>{
-      svg+=`<rect x="${X(q[1])}" y="${yy}" width="${Math.max(2,X(q[3])-X(q[1]))}" height="8" rx="4" fill="${c}" data-t="${lab}: ${name}<br>middle half ${fmt(q[1])}–${fmt(q[3])}, median ${fmt(q[2])}"/>`;
-      svg+=`<rect x="${X(q[2])-1}" y="${yy-1}" width="2" height="10" fill="var(--text-primary)" pointer-events="none"/>`;
+      const t=`<b>${lab}</b> · ${name}<br>range ${fmt(q[0])}–${fmt(q[6])} · 10th–90th ${fmt(q[1])}–${fmt(q[5])}<br>middle half ${fmt(q[2])}–${fmt(q[4])} · median ${fmt(q[3])}`;
+      svg+=`<line x1="${X(q[0])}" x2="${X(q[6])}" y1="${yy+4}" y2="${yy+4}" stroke="${c}" stroke-width="1" opacity="0.7"/>`;
+      svg+=`<line x1="${X(q[0])}" x2="${X(q[0])}" y1="${yy+1}" y2="${yy+7}" stroke="${c}" stroke-width="1"/><line x1="${X(q[6])}" x2="${X(q[6])}" y1="${yy+1}" y2="${yy+7}" stroke="${c}" stroke-width="1"/>`;
+      svg+=`<line x1="${X(q[1])}" x2="${X(q[5])}" y1="${yy+4}" y2="${yy+4}" stroke="${c}" stroke-width="2.5"/>`;
+      svg+=`<rect x="${X(q[2])}" y="${yy}" width="${Math.max(2,X(q[4])-X(q[2]))}" height="8" rx="3" fill="${c}"/>`;
+      svg+=`<rect x="${X(q[3])-1}" y="${yy-1}" width="2" height="10" fill="var(--text-primary)" pointer-events="none"/>`;
+      svg+=`<rect x="${L}" y="${yy-2}" width="${W-L-R}" height="12" fill="transparent" data-t="${t}"/>`;
     });
     if(x!=null&&!isNaN(x)){ const cx=X(x),cy=y+12; svg+=`<path d="M${cx} ${cy-7} L${cx+7} ${cy} L${cx} ${cy+7} L${cx-7} ${cy}Z" fill="var(--text-primary)" stroke="var(--surface-1)" stroke-width="2" data-t="${lab}: selected day ${fmt(x)}"/>`; }
   });

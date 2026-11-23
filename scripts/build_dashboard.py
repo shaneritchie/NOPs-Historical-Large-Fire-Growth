@@ -35,7 +35,8 @@ c["G"] = ((c.ERC < c.PSANationa.map(lambda p: TH[p]["_gate_ERC"][1])) |
 c["L"] = pd.cut(c.S, [-1, 1, 3, 5, 8], labels=LV).astype(str).where(c.G == 0, "Low")
 
 def q(x):
-    return [round(float(x.quantile(k)), 1) for k in (.1, .25, .5, .75, .9)]
+    # min, 10th, 25th, median, 75th, 90th, max
+    return [round(float(x.quantile(k)), 1) for k in (0, .1, .25, .5, .75, .9, 1)]
 
 HIST = {}
 for p, g in list(c.groupby("PSANationa")) + [("ALL", c)]:
