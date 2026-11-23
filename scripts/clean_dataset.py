@@ -11,7 +11,7 @@ only changes rows that still need it.
    everything else from the first row. The original rows are archived in
    data/merged_duplicate_rows.csv.
 
-Then run:  python scripts/compute_thresholds.py  and  python scripts/build_dashboard.py
+Then run:  python scripts/flag_large_growth.py, python scripts/compute_thresholds.py  and  python scripts/build_dashboard.py
 """
 import pathlib
 import pandas as pd

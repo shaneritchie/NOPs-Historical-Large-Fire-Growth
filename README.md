@@ -49,16 +49,16 @@ Each PSA has a threshold for 8 variables: ERC, BI, IC, FFWI, peak gust, average 
 
 The page uses FEMS hourly observations where they exist, and FEMS hourly forecasts for the hours after them. Between 1 PM Pacific and midnight, the observed column's daily values include forecast hours for the rest of the day, and the PSA detail panel says so.
 
-**Where the level is a weak guide.** In PSAs where the large growth rate at Very High is less than 10 points above Low (currently NC06, NC07 and NC08), the PSA detail panel and map pop-up add a ⚠ note. In those PSAs lightning and new large fire starts have mattered more than the weather score.
+**Where the level is a weak guide.** In PSAs where the large growth rate at Very High is less than 10 points above Low (currently NC06), the PSA detail panel and map pop-up add a ⚠ note. In that PSA lightning and new large fire starts have mattered more than the weather score.
 
 **Fuel gate.** A day can't score above Low if either of these is true:
 
 - ERC is below the 5th percentile of that PSA's large growth days.
 - 100-hr fuel moisture is above the 95th percentile.
 
-Such days are marked ⊘, meaning fuels are not receptive. This stops wind or dry air alone from raising the level when the fuels can't carry fire, for example a November east wind event. Tested on 2012–2026, it capped 24 of 1,227 large growth days that had scored Moderate or higher, which is 0.8% of large-growth acres. None of those had scored Very High. The gate values are in `data/psa_thresholds.json` (`_gate_ERC`, `_gate_F100`).
+Such days are marked ⊘, meaning fuels are not receptive. This stops wind or dry air alone from raising the level when the fuels can't carry fire, for example a November east wind event. Tested on 2012–2026, it capped 26 of 1,456 large growth days that had scored Moderate or higher, which is 0.5% of large-growth acres. None of those had scored Very High. The gate values are in `data/psa_thresholds.json` (`_gate_ERC`, `_gate_F100`).
 
-Across North Ops, 20% of fire-days at Low were large growth days, compared with 36% at Very High. The score works best in NC01–NC05. In NC06–NC08 weather alone separates large growth days poorly. See `data/DATA_DICTIONARY.md` for the full analysis and caveats.
+Across North Ops, 22% of fire-days at Low were large growth days, compared with 47% at Very High. The score works best in NC01–NC04. In NC05–NC07 weather alone separates large growth days less well. See `data/DATA_DICTIONARY.md` for the full analysis and caveats.
 
 Concern levels describe how similar conditions are to past large growth days. They are not a forecast of fire behavior.
 
@@ -81,6 +81,8 @@ Concern levels describe how similar conditions are to past large growth days. Th
 | `data/removed_late_perimeter_records.csv` | 47 rows dated years after their fire (final perimeters re-saved later), removed |
 | `data/merged_duplicate_rows.csv` | The original rows of 228 fire-days that were split across 2–3 rows and merged |
 | `scripts/clean_dataset.py` | The clean-up that removed late perimeter records and merged same-day duplicate rows (safe to re-run) |
+| `scripts/flag_large_growth.py` | Sets the large growth day flag from the ONCC threshold chart: 25% of to-date acres, PSA minimums, capped at 10,000 ac (safe to re-run) |
+| `scripts/lfm_skill_test.js` | Live fuel moisture test (browser console); results in `data/LFM_TEST_RESULTS.md` |
 | `data/removed_rx_pile_burn_fire_days.csv` | 20 off-season fire-days removed as Rx or pile burns (see the data dictionary) |
 | `scripts/compute_thresholds.py` | Recomputes fire-start counts, wind event thresholds, scoring thresholds, the fuel gate and historical rates from the dataset |
 | `data/psa_thresholds.json` | Per-PSA thresholds used for scoring |
@@ -90,7 +92,7 @@ Concern levels describe how similar conditions are to past large growth days. Th
 ## Updating
 
 - **Changing stations or thresholds:** edit `PSA_STATIONS`, `THRESHOLDS` and `HIST_LGD_RATE` in `scripts/nops_psa_conditions_update.py`, then run `python scripts/build_dashboard.py` (needs `pandas`) to regenerate `dashboard_data.js`.
-- **Adding a season of fire data, or removing rows:** update the CSV in `data/`, then run `python scripts/clean_dataset.py`, `python scripts/compute_thresholds.py` and `python scripts/build_dashboard.py`.
+- **Adding a season of fire data, or removing rows:** update the CSV in `data/`, then run `python scripts/clean_dataset.py`, `python scripts/flag_large_growth.py`, `python scripts/compute_thresholds.py` and `python scripts/build_dashboard.py`.
 
 ## ArcGIS Online layer (not maintained)
 

@@ -3,7 +3,7 @@
 **File:** `NOPs_Large_Fire_Growth_Days_2012_2026_SIG_Weather.csv`
 **Last updated:** November 23, 2026
 **Rows:** 4,623 fire-days (one row per fire, per day, per PSA)
-**Columns:** 43
+**Columns:** 45
 **Companion files:** `NOPs_2012_2020_FireFamilyPlus_SIG_Values_Archive.csv` (original FireFamily+ values), `nops_psa_conditions_notebook.py` (ArcGIS Online update script)
 **Coverage:** North Ops (ONCC) PSAs NC01–NC08, 2012 through October 2026
 
@@ -47,7 +47,9 @@ This table pairs every day of growth on North Ops large fires with the weather, 
 | Fire_Size_Cumulative | Total fire size through this day, in acres, rounded. |
 | LargeFireFlag | 1 = the fire meets the large-fire definition (every row in this file is 1). |
 | GrowthPercent | Percent growth from the prior day, rounded. Blank on a fire's first day. |
-| LargeGrowthDayFlag | 1 = large fire growth day. This is the target variable for analysis. |
+| LGD_Cutoff_Acres | Acres of growth needed that day to count as a large growth day, from the ONCC threshold chart (see known issue 11). |
+| LargeGrowthDayFlag | 1 = large fire growth day: Fire_Size at or above LGD_Cutoff_Acres. This is the target variable for analysis. |
+| LargeGrowthDayFlag_Original | The flag as supplied with the perimeter data, before re-flagging on November 23, 2026. Kept for reference only. |
 
 ### SIG weather and fire danger (PSA averages)
 
@@ -123,32 +125,37 @@ Categories follow the WIMS SIG Daily Listing. Each value is the average across t
       - weather and flags kept, since they were identical
 
       The original rows are in `merged_duplicate_rows.csv`.
-    - Before this, those fire-days counted two or three times in every statistic. Thresholds moved by 0–1 point in most PSAs. NC03A moved more, because the SCU and CZU duplicates were concentrated there: max RH went from ≤ 74.5 to ≤ 82.5%, average VPD from ≥ 1,500 to ≥ 1,341 Pa, and gust from ≥ 22.8 to ≥ 21.5 mph. NC03A now has 32 large growth days, so it gets small-sample blending.
+    - Before this, those fire-days counted two or three times in every statistic. Thresholds moved by 0–1 point in most PSAs. NC03A moved more, because the SCU and CZU duplicates were concentrated there: max RH went from ≤ 74.5 to ≤ 82.5%, average VPD from ≥ 1,500 to ≥ 1,341 Pa, and gust from ≥ 22.8 to ≥ 21.5 mph. NC03A then had 32 large growth days, so it gets small-sample blending.
+
+11. **Large growth days were re-flagged with the ONCC threshold chart** (November 23, 2026, `scripts/flag_large_growth.py`, from `Large_Fire_Growth_Threshold_Working.xlsx`).
+    - **The rule:** the cutoff is 25% of the fire's to-date acres before that day's growth, with a PSA minimum (NC01 50, NC02 75, NC03A 50, NC03B 150, NC04 75, NC05 150, NC06 150 then 100 once the fire reaches 150 ac, NC07 50, NC08 400 ac), capped at 10,000 ac. The minimum applies while 20% of to-date acres is at or below it, and on a fire's first perimeter day.
+    - **Why:** the supplied flag matched the chart on nearly every 2012–2019 row, but missed many runs from 2020 on (2021: 34 flagged, 143 by the chart). Missed examples include Doe (August Complex) 135,193 ac on 9/9/2020, Sugar 39,238 ac on 7/9/2021, Caldor 18,372 ac on 8/17/2021 and Dixie 58,874 ac on 8/5/2021. 37 small 2012–2017 days had been flagged below their PSA minimum and are no longer flagged.
+    - **Effect:** 1,227 large growth days became 1,456 (266 added, 37 removed); they now hold 71% of all growth acres, up from 41%. NC04 gained 95, NC07 73 and NC06 24. Thresholds moved by about 1 point at most. The score separates days better: Low 22% vs Very High 47%, up from 20% vs 36%. The original flag is kept in `LargeGrowthDayFlag_Original`.
 
 ## Large growth day analysis and dashboard thresholds
 
 The comparison is large growth days against other days when the same large fires were burning. Because every row is already a fire-day, the gaps are smaller than they would be against all summer days.
 
-- **Weather separates large growth days only modestly.** The best single variables (SC, BI, IC, FFWI, GSpd, F100) have an AUC of about 0.60–0.64 across North Ops, where 0.5 means no skill and 1.0 means perfect.
-- **The strongest signal is regional activity.** On days when 3 or more large fires started in a PSA, 55% of fire-days were large growth days, compared with 25% otherwise. A lightning cluster raised the rate from 25% to 40%, and a large wind event from 25% to 34%.
+- **Weather separates large growth days only modestly.** The best single variables (SC, BI, IC, FFWI, GSpd, F100) have an AUC of about 0.62–0.65 across North Ops, where 0.5 means no skill and 1.0 means perfect.
+- **The strongest signal is regional activity.** On days when 3 or more large fires started in a PSA, 67% of fire-days were large growth days, compared with 29% otherwise. A lightning cluster raised the rate from 30% to 47%, and a large wind event from 30% to 40%.
 - **The PSAs behave differently:**
-  - NC01, NC02, NC03A and NC04 respond most to fire weather.
-  - NC03A shows the clearest separation (AUC about 0.70–0.77 on RH, MxRH, F100, FFWI and SC).
-  - In NC06, NC07 and NC08 weather barely separates large growth days. Growth there tracks lightning (in NC06) and multiple starts (in NC07).
+  - NC01, NC02, NC03A and NC04 respond most to fire weather (best single-variable AUC 0.66–0.77).
+  - NC03A shows the clearest separation (AUC about 0.75–0.77 on F100, SC, GSpd and BI).
+  - In NC05, NC06 and NC07 weather separates large growth days poorly (best AUC 0.58–0.60). Growth there tracks lightning (in NC06) and multiple starts (in NC07).
 
 **Dashboard score.** Each PSA-day gets one point per variable that meets that PSA's threshold, for 8 variables in total. Thresholds are the median value on the PSA's large growth days, 2012–2026. PSAs with fewer than 40 large growth days (NC01, NC03A, NC03B, NC08) are blended toward the PSA's 60th percentile of all fire-days. MxRH and F100 count when at or below the threshold.
 
 | PSA | ERC | BI | IC | FFWI | GSpd | VPDA | MxRH | F100 |
 |---|---|---|---|---|---|---|---|---|
-| NC01 | 27.9 | 18.0 | 14.5 | 9.4 | 14.6 | 1007 | 87.2 | 15.4 |
-| NC02 | 45.5 | 27.9 | 31.6 | 17.4 | 20.0 | 1852 | 58.9 | 10.6 |
-| NC03A | 35.4 | 21.8 | 18.7 | 13.7 | 21.5 | 1341 | 82.5 | 13.2 |
-| NC03B | 50.5 | 31.9 | 36.3 | 22.7 | 24.9 | 2248 | 50.2 | 8.9 |
-| NC04 | 47.1 | 23.9 | 27.8 | 9.9 | 16.0 | 1940 | 65.0 | 10.6 |
-| NC05 | 53.3 | 29.2 | 40.0 | 15.1 | 18.0 | 2588 | 49.0 | 9.1 |
-| NC06 | 52.0 | 28.9 | 35.9 | 15.9 | 21.0 | 2134 | 52.0 | 9.7 |
-| NC07 | 52.3 | 27.6 | 33.7 | 13.5 | 17.5 | 1967 | 52.0 | 9.5 |
-| NC08 | 53.6 | 29.5 | 37.4 | 17.8 | 24.0 | 2174 | 53.7 | 9.0 |
+| NC01 | 28.8 | 18.0 | 14.7 | 9.4 | 14.0 | 1005 | 86.8 | 15.0 |
+| NC02 | 46.2 | 28.1 | 32.8 | 17.5 | 20.0 | 1904 | 58.9 | 10.4 |
+| NC03A | 35.4 | 21.8 | 18.7 | 13.5 | 21.6 | 1319 | 82.9 | 13.2 |
+| NC03B | 51.4 | 32.5 | 36.2 | 23.4 | 25.1 | 2301 | 48.9 | 8.8 |
+| NC04 | 47.5 | 24.1 | 28.2 | 9.9 | 16.1 | 1956 | 64.0 | 10.5 |
+| NC05 | 53.4 | 29.2 | 40.1 | 15.4 | 18.0 | 2587 | 49.0 | 9.1 |
+| NC06 | 52.7 | 29.3 | 36.9 | 16.2 | 21.7 | 2157 | 51.0 | 9.0 |
+| NC07 | 53.9 | 28.0 | 35.1 | 13.8 | 18.0 | 2028 | 50.0 | 9.2 |
+| NC08 | 54.1 | 29.3 | 37.3 | 17.4 | 24.0 | 2154 | 53.0 | 8.9 |
 
 Concern levels are based on the score:
 - Low: 0–1
@@ -156,7 +163,7 @@ Concern levels are based on the score:
 - High: 4–5
 - Very High: 6–8
 
-Across North Ops, 20% of fire-days at Low were large growth days, compared with 36% at Very High (base rate 27%). The dashboard builds forecast days from FEMS hourly forecasts, read at 1300 and over each day exactly like the history, so all 8 variables are scored every day.
+Across North Ops, 22% of fire-days at Low were large growth days, compared with 28% at Moderate, 34% at High and 47% at Very High (base rate 31%). The dashboard builds forecast days from FEMS hourly forecasts, read at 1300 and over each day exactly like the history, so all 8 variables are scored every day.
 
 This replaced FEMS daily forecast summaries on November 23, 2026. Those summaries give daily peak values, which run well above 1300 values. On 10 August 2025 days at 8 NC04 stations, the peaks were higher by:
 
@@ -166,7 +173,7 @@ This replaced FEMS daily forecast summaries on November 23, 2026. Those summarie
 
 100-hr fuel moisture ran 0.7 points lower. As a result, forecast days had cleared thresholds more easily than observed days.
 
-**Weak-guide PSAs.** In NC06, NC07 and NC08 the large growth rate at Very High is less than 10 points above Low. NC07 is 46% at Low and 42% at Very High. The dashboard adds a ⚠ note for these PSAs.
+**Weak-guide PSAs.** In PSAs where the large growth rate at Very High is less than 10 points above Low, the dashboard adds a ⚠ note. Since the November 23, 2026 re-flagging that is only NC06 (36% at Low, 42% at Very High). NC07 (47% → 58%) and NC08 (27% → 40%) no longer qualify. NC08 has few fire-days per level (0 of 11 at High), so read its rates loosely.
 
 **Fuel gate (added November 23, 2026).** If ERC is below the 5th percentile of the PSA's large growth days, or 100-hr fuel moisture is above the 95th percentile, the level is capped at Low whatever the score. The dashboard marks these days with ⊘.
 
@@ -174,12 +181,12 @@ The gate was added because wind and humidity alone could raise off-season days. 
 
 | PSA | NC01 | NC02 | NC03A | NC03B | NC04 | NC05 | NC06 | NC07 | NC08 |
 |---|---|---|---|---|---|---|---|---|---|
-| ERC below | 19.5 | 35.4 | 26.4 | 29.7 | 29.3 | 43.0 | 46.1 | 33.8 | 43.8 |
-| 100-hr FM above (%) | 18.1 | 13.7 | 16.2 | 13.9 | 15.7 | 12.1 | 11.7 | 14.0 | 13.1 |
+| ERC below | 20.0 | 35.4 | 26.3 | 35.6 | 29.3 | 43.0 | 44.1 | 35.4 | 44.5 |
+| 100-hr FM above (%) | 18.1 | 13.7 | 16.2 | 13.2 | 15.7 | 12.0 | 12.1 | 13.7 | 12.6 |
 
 How the cutoffs were chosen, tested on 2012–2026:
 
-- **5th/95th percentile gate:** caps 24 of the 1,227 large growth days that had scored Moderate or higher, which is 0.8% of large-growth acres. None of them had scored Very High. The largest are Kelly on 8/24/2023 (Moderate) and Glass on 9/27/2020, its first day (High 4).
+- **5th/95th percentile gate:** caps 26 of the 1,456 large growth days that had scored Moderate or higher, which is 0.5% of large-growth acres. None of them had scored Very High. The largest is Kelly on 8/24/2023 (Moderate, 12,086 ac). (Before re-flagging: 24 of 1,227, 0.8% of acres.)
 - **10th/90th percentile gate:** rejected. It would have capped 58 such days, including Zogg and Doe on 9/28/2020 and Kincade on 10/24/2019, all wind-driven High days.
 
 The large growth rates by level barely change with the gate, because the historical record holds few fire-days with wet fuels. The gate matters mostly outside fire season.
