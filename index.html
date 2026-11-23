@@ -515,7 +515,10 @@ const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov
 
 function loadHistory(){
   if (HLOAD) return HLOAD;
-  HLOAD = fetch("data/history_rows.json").then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); }).then(j=>{
+  const get = location.protocol==="file:"
+    ? new Promise((ok,bad)=>{ const sc=document.createElement("script"); sc.src="data/history_rows.js"; sc.onload=()=>ok(window.HISTORY_ROWS); sc.onerror=()=>bad(new Error("missing data/history_rows.js")); document.head.appendChild(sc); })
+    : fetch("data/history_rows.json").then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); });
+  HLOAD = get.then(j=>{
     H = j.rows.map(a=>Object.fromEntries(j.fields.map((f,i)=>[f,a[i]])));
     H.forEach(r=>{ r.year=+r.date.slice(0,4); r.month=+r.date.slice(5,7); });
     const yrs=[...new Set(H.map(r=>r.year))].sort();
@@ -684,7 +687,7 @@ async function renderTab(){
   document.querySelectorAll("#tabs a").forEach(a=>a.setAttribute("aria-current", a.dataset.tab===t?"page":"false"));
   $("hfilters").classList.toggle("hidden", t==="outlook"); $("fEvWrap").classList.toggle("hidden", t!=="growth");
   if(t==="outlook") return;
-  if(!H){ $("fCount").textContent="Loading 2012–2026 history…"; try{ await loadHistory(); }catch(e){ $("fCount").textContent="Could not load data/history_rows.json (open the dashboard from its web address, not as a local file)."; return; } }
+  if(!H){ $("fCount").textContent="Loading 2012–2026 history…"; try{ await loadHistory(); }catch(e){ $("fCount").textContent="Could not load the 2012–2026 history (data/history_rows.json). Keep the data folder next to index.html."; return; } }
   ({growth:renderGrowth, wind:renderWind, lightning:renderLightning})[t]();
 }
 addEventListener("hashchange", renderTab);

@@ -81,4 +81,6 @@ for i, r in c.iterrows():
     rows.append(out)
 hist_rows = {"fields": [k for k, _ in F], "rows": sorted(rows, key=lambda x: x[0])}
 (ROOT / "data" / "history_rows.json").write_text(json.dumps(hist_rows, separators=(",", ":")))
+# Same data as a script, so the dashboard's history tabs also work when index.html is opened as a local file
+(ROOT / "data" / "history_rows.js").write_text("window.HISTORY_ROWS = " + json.dumps(hist_rows, separators=(",", ":")) + ";\n")
 print("Wrote data/history_rows.json", len(rows), "rows")

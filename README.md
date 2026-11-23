@@ -30,7 +30,7 @@ It has four tabs:
 
   This is historical NLDN data; the dashboard doesn't include live lightning.
 
-The history tabs read `data/history_rows.json`, so they need the page to be opened from its web address, not as a local file.
+The history tabs read `data/history_rows.json`, or `data/history_rows.js` when `index.html` is opened as a local file, so keep the `data` folder next to `index.html`.
 
 ### How the score works
 
@@ -50,7 +50,7 @@ Concern levels describe how similar conditions are to past large growth days. Th
 ### Viewing it
 
 - **GitHub Pages:** in repo Settings → Pages, choose "Deploy from a branch", then `main` and `/ (root)`. The dashboard is then served at `https://<owner>.github.io/<repo>/`.
-- **Locally:** download `index.html` and `dashboard_data.js` into one folder and open `index.html`.
+- **Locally:** download or clone the repo and open `index.html`. Keep `dashboard_data.js` and the `data` folder beside it.
 
 ## Repository layout
 
@@ -58,8 +58,8 @@ Concern levels describe how similar conditions are to past large growth days. Th
 |---|---|
 | `index.html` | The dashboard page |
 | `dashboard_data.js` | Station lists, thresholds and historical statistics the page loads (generated) |
-| `data/history_rows.json` | One row per fire-day with the fields the history tabs use (generated) |
-| `scripts/build_dashboard.py` | Rebuilds `dashboard_data.js` and `data/history_rows.json` from the historical CSV and the thresholds in the update script |
+| `data/history_rows.json`, `data/history_rows.js` | One row per fire-day with the fields the history tabs use; the `.js` copy is for opening the page as a local file (generated) |
+| `scripts/build_dashboard.py` | Rebuilds `dashboard_data.js` and the `data/history_rows` files from the historical CSV and the thresholds in the update script |
 | `scripts/nops_psa_conditions_update.py` | Updates the ArcGIS Online layer "NOPs PSA Fire Weather Conditions" (NIFC org) with the same calculations. Holds the PSA station lists and thresholds. |
 | `data/NOPs_Large_Fire_Growth_Days_2012_2026_SIG_Weather.csv` | 4,950 large fire-days with PSA SIG weather, lightning and event flags |
 | `data/NOPs_2012_2020_FireFamilyPlus_SIG_Values_Archive.csv` | Original FireFamily+ values for 2012–2020, replaced in the main file by FEMS values |
