@@ -387,6 +387,9 @@ const row = (p,d) => ROWS.find(r=>r.PSA===p && r.Day===d);
 const lvlLabel = c => c ? `<span class="lvl"><i class="sw" style="background:var(--${LVL[c]})"></i>${c}</span>` : `<span class="muted">No data</span>`;
 const dayName = d => { const r = ROWS.find(x=>x.Day===d); if(!r) return d===0?"Today":"+"+d; const dt=new Date(r.Date+"T12:00:00"); return (d===0?"Obs ":"")+dt.toLocaleDateString([], {weekday:"short", month:"numeric", day:"numeric"}); };
 
+const MET_NAMES = {ERC:"energy release component (ERC)", BI:"burning index (BI)", IC:"ignition component (IC)",
+  FFWI:"Fosberg fire weather index (FFWI)", GSpd:"peak gust", VPDA:"average vapor pressure deficit (VPD)", MxRH:"max RH", F100:"100-hr fuel moisture"};
+const metNames = m => m.map(v=>MET_NAMES[v]||v).join(", ");
 const MIN_N = 10;
 /* Where today's ERC / 100-hr sits among the PSA's past large growth days, as counts. */
 function fuelCompare(psa, v, x){
@@ -452,7 +455,7 @@ function renderMap(){
   }
   $("map").innerHTML=svg+"</svg>";
   $("map").querySelectorAll("path[data-p]").forEach(el=>{
-    el.onmousemove=e=>{const p=el.dataset.p,r=row(p,sel.day); showTip(e, `<b>${p} – ${NAMES[p]||""}</b><br>${r?lvlLabel(r.Concern)+` · score ${r.Score}/8`+(r.Gate?"<br>⊘ Capped at Low: fuels not receptive":"")+(fuelLines(p,r)?"<br>"+fuelLines(p,r):""):"No data"}${r&&r.Met.length?`<br>Over threshold: ${r.Met.join(", ")}`:""}${r&&r.Concern?`<br><span style="color:var(--text-secondary)">${rateText(p,r)}</span>`:""}`);};
+    el.onmousemove=e=>{const p=el.dataset.p,r=row(p,sel.day); showTip(e, `<b>${p} – ${NAMES[p]||""}</b><br>${r?lvlLabel(r.Concern)+` · score ${r.Score}/8`+(r.Gate?"<br>⊘ Capped at Low: fuels not receptive":"")+(fuelLines(p,r)?"<br>"+fuelLines(p,r):""):"No data"}${r&&r.Met.length?`<br>Over threshold: ${metNames(r.Met)}`:""}${r&&r.Concern?`<br><span style="color:var(--text-secondary)">${rateText(p,r)}</span>`:""}`);};
     el.onmouseleave=hideTip; el.onclick=()=>{sel.psa=el.dataset.p;render();};
   });
 }
@@ -473,7 +476,7 @@ function renderOutlook(){
   $("outlook").innerHTML=h+"</tbody>";
   $("outlook").querySelectorAll(".chip").forEach(c=>{
     c.onclick=()=>{sel.psa=c.dataset.p;sel.day=+c.dataset.d;render();};
-    c.onmousemove=e=>{const r=row(c.dataset.p,+c.dataset.d); if(!r) return; showTip(e,`<b>${r.PSA} · ${r.Date}</b> (${r.Type.toLowerCase()})<br>${lvlLabel(r.Concern)} · ${r.Met.length} of ${r.Possible} thresholds${r.Met.length?": "+r.Met.join(", "):""}${r.Gate?"<br>⊘ Capped at Low: fuels not receptive":""}${fuelLines(r.PSA,r)?"<br>"+fuelLines(r.PSA,r):""}<br>Peak gust ${fmt(r.GSpd)} mph · ERC ${fmt(r.ERC)} · ${r.Type==="Observed"?"RH at 1300":"min RH"} ${fmt(r.RH)}%${r.WindEvent?"<br>▲ Large wind event":""}`);};
+    c.onmousemove=e=>{const r=row(c.dataset.p,+c.dataset.d); if(!r) return; showTip(e,`<b>${r.PSA} · ${r.Date}</b> (${r.Type.toLowerCase()})<br>${lvlLabel(r.Concern)} · ${r.Met.length} of ${r.Possible} thresholds${r.Met.length?": "+metNames(r.Met):""}${r.Gate?"<br>⊘ Capped at Low: fuels not receptive":""}${fuelLines(r.PSA,r)?"<br>"+fuelLines(r.PSA,r):""}<br>Peak gust ${fmt(r.GSpd)} mph · ERC ${fmt(r.ERC)} · ${r.Type==="Observed"?"RH at 1300":"min RH"} ${fmt(r.RH)}%${r.WindEvent?"<br>▲ Large wind event":""}`);};
     c.onmouseleave=hideTip;
   });
 }
