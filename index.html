@@ -125,7 +125,7 @@ th.sort:hover{color:var(--text-primary)}
 
   <section class="card span-5">
     <h2>Concern by PSA</h2>
-    <p class="note">Score = how many of 8 large-growth thresholds the PSA meets (forecast days use 6, scaled to 8). Click a PSA for details.</p>
+    <p class="note">Score = how many of 8 large-growth thresholds the PSA meets (forecast days use 6, scaled to 8). ⊘ = fuels not receptive, capped at Low. Click a PSA for details.</p>
     <div class="days" id="days" role="group" aria-label="Day"></div>
     <div id="map"></div>
     <div class="legend" id="legend"></div>
@@ -133,7 +133,7 @@ th.sort:hover{color:var(--text-primary)}
 
   <section class="card span-7">
     <h2>7-day outlook</h2>
-    <p class="note">Today's 1300 LST observation, then FEMS daily forecasts. Cell shows concern level and score (0–8). ▲ = large wind event (peak gust at or above the PSA's 90th percentile).</p>
+    <p class="note">Today's 1300 LST observation, then FEMS daily forecasts. Cell shows concern level and score (0–8). ▲ = large wind event (peak gust at or above the PSA's 90th percentile). ⊘ = fuels not receptive (ERC or 100-hr fuel moisture wetter than 95% of the PSA's large growth days), so the level is capped at Low whatever the score.</p>
     <div style="overflow-x:auto"><table class="outlook" id="outlook"></table></div>
   </section>
 
@@ -333,7 +333,8 @@ function score(r){
   const th = CFG.TH[r.PSA]; let met=[], n=0;
   for (const [v,[op,val]] of Object.entries(th)){ if(v[0]==="_") continue; const x=r[v]; if(x==null||isNaN(x)) continue; n++; if(op===">="?x>=val:x<=val) met.push(v); }
   r.Met=met; r.Possible=n; r.Score=n?Math.round(met.length/n*8):null;
-  r.Concern = r.Score==null ? null : LEVELS.filter(([a])=>r.Score>=a).pop()[1];
+  r.Gate = (r.ERC!=null && r.ERC < th._gate_ERC[1]) || (r.F100!=null && r.F100 > th._gate_F100[1]);
+  r.Concern = r.Score==null ? null : r.Gate ? "Low" : LEVELS.filter(([a])=>r.Score>=a).pop()[1];
   r.Rate = r.Concern ? CFG.HR[r.PSA][r.Concern] : null;
   r.WindEvent = r.GSpd!=null && r.GSpd>=th._wind_event[1];
   return r;
@@ -403,11 +404,11 @@ function renderMap(){
     const r=row(p,sel.day);
     const ink = r&&r.Concern ? INK[r.Concern] : "var(--text-primary)";
     svg+=`<text x="${cx}" y="${cy}" text-anchor="middle" style="fill:${ink};font-size:12px;font-weight:600" pointer-events="none">${p}</text>`;
-    if (r && r.Score!=null) svg+=`<text x="${cx}" y="${cy+14}" text-anchor="middle" style="fill:${ink};font-size:11px" pointer-events="none">${r.Score}/8</text>`;
+    if (r && r.Score!=null) svg+=`<text x="${cx}" y="${cy+14}" text-anchor="middle" style="fill:${ink};font-size:11px" pointer-events="none">${r.Score}/8${r.Gate?" ⊘":""}</text>`;
   }
   $("map").innerHTML=svg+"</svg>";
   $("map").querySelectorAll("path[data-p]").forEach(el=>{
-    el.onmousemove=e=>{const p=el.dataset.p,r=row(p,sel.day); showTip(e, `<b>${p} – ${NAMES[p]||""}</b><br>${r?lvlLabel(r.Concern)+` · score ${r.Score}/8`:"No data"}${r&&r.Met.length?`<br>Over threshold: ${r.Met.join(", ")}`:""}${r&&r.Rate!=null?`<br>Historically ${r.Rate}% of fire-days at this level were large growth days`:""}`);};
+    el.onmousemove=e=>{const p=el.dataset.p,r=row(p,sel.day); showTip(e, `<b>${p} – ${NAMES[p]||""}</b><br>${r?lvlLabel(r.Concern)+` · score ${r.Score}/8`+(r.Gate?"<br>⊘ Capped at Low: fuels not receptive":""):"No data"}${r&&r.Met.length?`<br>Over threshold: ${r.Met.join(", ")}`:""}${r&&r.Rate!=null?`<br>Historically ${r.Rate}% of fire-days at this level were large growth days`:""}`);};
     el.onmouseleave=hideTip; el.onclick=()=>{sel.psa=el.dataset.p;render();};
   });
 }
@@ -421,14 +422,14 @@ function renderOutlook(){
       const r=row(p,d);
       if(!r||r.Concern==null){h+=`<td class="cell"><div class="chip" style="background:var(--nodata)" data-p="${p}" data-d="${d}">–</div></td>`;continue;}
       const isSel = p===sel.psa && d===sel.day;
-      h+=`<td class="cell"><div class="chip${isSel?" sel":""}" style="background:var(--${LVL[r.Concern]});color:${INK[r.Concern]}" data-p="${p}" data-d="${d}" title="${r.Concern}, score ${r.Score}/8">${r.Concern==="Very High"?"V.High":r.Concern} ${r.Score}${r.WindEvent?" ▲":""}</div></td>`;
+      h+=`<td class="cell"><div class="chip${isSel?" sel":""}" style="background:var(--${LVL[r.Concern]});color:${INK[r.Concern]}" data-p="${p}" data-d="${d}" title="${r.Concern}, score ${r.Score}/8${r.Gate?" (capped at Low: fuels not receptive)":""}">${r.Concern==="Very High"?"V.High":r.Concern} ${r.Score}${r.Gate?" ⊘":""}${r.WindEvent?" ▲":""}</div></td>`;
     }
     h+="</tr>";
   }
   $("outlook").innerHTML=h+"</tbody>";
   $("outlook").querySelectorAll(".chip").forEach(c=>{
     c.onclick=()=>{sel.psa=c.dataset.p;sel.day=+c.dataset.d;render();};
-    c.onmousemove=e=>{const r=row(c.dataset.p,+c.dataset.d); if(!r) return; showTip(e,`<b>${r.PSA} · ${r.Date}</b> (${r.Type.toLowerCase()})<br>${lvlLabel(r.Concern)} · ${r.Met.length} of ${r.Possible} thresholds${r.Met.length?": "+r.Met.join(", "):""}<br>Peak gust ${fmt(r.GSpd)} mph · ERC ${fmt(r.ERC)} · min RH ${fmt(r.RH)}%${r.WindEvent?"<br>▲ Large wind event":""}`);};
+    c.onmousemove=e=>{const r=row(c.dataset.p,+c.dataset.d); if(!r) return; showTip(e,`<b>${r.PSA} · ${r.Date}</b> (${r.Type.toLowerCase()})<br>${lvlLabel(r.Concern)} · ${r.Met.length} of ${r.Possible} thresholds${r.Met.length?": "+r.Met.join(", "):""}${r.Gate?"<br>⊘ Capped at Low: fuels not receptive":""}<br>Peak gust ${fmt(r.GSpd)} mph · ERC ${fmt(r.ERC)} · min RH ${fmt(r.RH)}%${r.WindEvent?"<br>▲ Large wind event":""}`);};
     c.onmouseleave=hideTip;
   });
 }
@@ -437,12 +438,17 @@ function renderDetail(){
   const r=row(sel.psa,sel.day), th=CFG.TH[sel.psa];
   $("detailTitle").textContent=`${sel.psa} ${NAMES[sel.psa]||""} · ${r?r.Date:""}`;
   if(!r){ $("detail").innerHTML=""; $("detailNote").textContent="No data for this PSA and day."; return; }
-  $("detailNote").innerHTML=`${r.Type==="Observed"?`1300 LST observation, average of ${r.Stations} RAWS`:`FEMS forecast, average of ${r.Stations} RAWS (daily max/min values)`} · ${lvlLabel(r.Concern)} · score ${r.Score}/8 · historically ${r.Rate}% of ${sel.psa} fire-days at this level were large growth days.`;
+  $("detailNote").innerHTML=`${r.Type==="Observed"?`1300 LST observation, average of ${r.Stations} RAWS`:`FEMS forecast, average of ${r.Stations} RAWS (daily max/min values)`} · ${lvlLabel(r.Concern)} · score ${r.Score}/8${r.Gate?" · <b>⊘ capped at Low: fuels not receptive</b>":""} · historically ${r.Rate}% of ${sel.psa} fire-days at this level were large growth days.`;
   let h=`<thead><tr><th>Variable</th><th class="num">Value</th><th class="num">Threshold</th><th>Met</th></tr></thead><tbody>`;
   for (const [v,lab,op] of VARS){
     const x=r[v], t=th[v][1], has=x!=null&&!isNaN(x), met=r.Met.includes(v);
     h+=`<tr><td>${lab}</td><td class="num">${fmt(x)}</td><td class="num">${op==="<="?"≤ ":"≥ "}${fmt(t)}</td><td>${!has?'<span class="muted">not in forecast</span>':met?'<span class="ok">✓ Yes</span>':'<span class="muted">No</span>'}</td></tr>`;
   }
+  const gE=r.ERC!=null&&r.ERC<th._gate_ERC[1], gF=r.F100!=null&&r.F100>th._gate_F100[1];
+  h+=`<tr><td colspan="4" style="padding-top:12px;color:var(--text-secondary);font-size:12px">Fuel gate (caps the level at Low when either is met)</td></tr>`;
+  h+=`<tr><td>ERC too low</td><td class="num">${fmt(r.ERC)}</td><td class="num">&lt; ${fmt(th._gate_ERC[1])}</td><td>${r.ERC==null?'<span class="muted">–</span>':gE?'<b>⊘ Yes</b>':'<span class="muted">No</span>'}</td></tr>`;
+  h+=`<tr><td>100-hr FM too high</td><td class="num">${fmt(r.F100)}</td><td class="num">&gt; ${fmt(th._gate_F100[1])}</td><td>${r.F100==null?'<span class="muted">–</span>':gF?'<b>⊘ Yes</b>':'<span class="muted">No</span>'}</td></tr>`;
+  h+=`<tr><td colspan="4" style="padding-top:12px;color:var(--text-secondary);font-size:12px">Wind</td></tr>`;
   h+=`<tr><td>Large wind event</td><td class="num">${fmt(r.GSpd)}</td><td class="num">≥ ${fmt(th._wind_event[1])}</td><td>${r.GSpd==null?'<span class="muted">–</span>':r.WindEvent?'<span class="ok">✓ Yes</span>':'<span class="muted">No</span>'}</td></tr>`;
   h+=`<tr><td colspan="4" style="padding-top:12px;color:var(--text-secondary);font-size:12px">Other conditions</td></tr>`;
   for (const [v,lab] of OTHER){ if(r[v]==null) continue; h+=`<tr><td>${lab}</td><td class="num">${fmt(r[v],v==="Rain"?2:1)}</td><td></td><td></td></tr>`; }
@@ -501,7 +507,7 @@ function renderHist(){
   bars($("months"), M, H.months, {aria:"Large growth days by month", tip:i=>`<b>${MN[i]}</b><br>${H.months[i]} large growth days`});
   $("topTitle").textContent=`${sel.psa}: biggest growth days`;
   $("top").innerHTML=`<thead><tr><th>Date</th><th>Fire</th><th class="num">Acres</th><th>Level</th></tr></thead><tbody>`+
-    H.top.map(t=>`<tr><td>${t.date}</td><td>${t.fire}${sel.psa==="ALL"?` <span class="muted">${t.psa}</span>`:""}</td><td class="num">${t.acres.toLocaleString()}</td><td>${lvlLabel(t.L)} ${t.S}</td></tr>`).join("")+"</tbody>";
+    H.top.map(t=>`<tr><td>${t.date}</td><td>${t.fire}${sel.psa==="ALL"?` <span class="muted">${t.psa}</span>`:""}</td><td class="num">${t.acres.toLocaleString()}</td><td>${lvlLabel(t.L)} ${t.S}${t.G?" ⊘":""}</td></tr>`).join("")+"</tbody>";
 }
 
 /* ================= history explorer tabs ================= */
@@ -604,7 +610,7 @@ function table(key, el, pager, rows, cols){
   pager.querySelectorAll("button").forEach(b=>b.onclick=()=>{PG[key]+= +b.dataset.d; renderTab();});
 }
 const flags = r => `${r.WE?'<span class="flag" title="Large wind event">▲</span>':""}${r.LC?'<span class="flag" title="Lightning cluster">⚡</span>':""}${r.Starts>=3?'<span class="flag" title="3+ large fire starts">✸</span>':""}`;
-const scoreLvl = s => s==null?null:LEVELS.filter(([a])=>s>=a).pop()[1];
+const scoreLvl = (s,g) => s==null?null:g?"Low":LEVELS.filter(([a])=>s>=a).pop()[1];
 const gust = r => r.GSpd==null?"–":`${fmt(r.GSpd)} ${compass(r.GDir)}`;
 
 function renderGrowth(){
@@ -620,7 +626,7 @@ function renderGrowth(){
   $("gRoseL").dataset.c="var(--series-2)"; rose($("gRoseL"), vals(A,"GDir"), "Large growth days"); rose($("gRoseO"), vals(B,"GDir"), "Other fire-days");
   table("g",$("gTable"),$("gPager"),A,[{k:"date",h:"Date",f:r=>r.date},{k:"fire",h:"Fire",f:r=>r.fire},{k:"psa",h:"PSA",f:r=>r.psa},{k:"acres",h:"Acres",num:1,f:r=>r.acres.toLocaleString()},{k:"growth",h:"Growth %",num:1},
     {k:"Temp",h:"Temp",num:1},{k:"RH",h:"RH",num:1},{k:"MxRH",h:"Max RH",num:1},{k:"Wind",h:"Wind",num:1},{k:"GSpd",h:"Gust",num:1,f:gust},{k:"VPDA",h:"VPD avg",num:1},
-    {k:"ERC",h:"ERC",num:1},{k:"BI",h:"BI",num:1},{k:"FFWI",h:"FFWI",num:1},{k:"F100",h:"100-hr",num:1},{k:"L3",h:"Strikes 3 d",num:1},{k:"Score",h:"Level",f:r=>lvlLabel(scoreLvl(r.Score))+" "+r.Score},{k:"WE",h:"Flags",f:flags}]);
+    {k:"ERC",h:"ERC",num:1},{k:"BI",h:"BI",num:1},{k:"FFWI",h:"FFWI",num:1},{k:"F100",h:"100-hr",num:1},{k:"L3",h:"Strikes 3 d",num:1},{k:"Score",h:"Level",f:r=>lvlLabel(scoreLvl(r.Score,r.G))+" "+r.Score+(r.G?" ⊘":"")},{k:"WE",h:"Flags",f:flags}]);
 }
 
 function psaDays(rows){ const m=new Map(); rows.forEach(r=>{const k=r.psa+"|"+r.date; if(!m.has(k)) m.set(k,{psa:r.psa,date:r.date,GSpd:r.GSpd,GDir:r.GDir,WT:r.WT,RH:r.RH,ERC:r.ERC,L3:r.L3,fires:0,lgd:0,acres:0,top:""});

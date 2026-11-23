@@ -141,6 +141,22 @@ Concern levels are based on the score:
 
 Across North Ops, 19% of fire-days at Low were large growth days, compared with 36% at Very High (base rate 26%). Forecast days don't have FFWI or VPDA, so their score is scaled to 8 from the 6 variables available.
 
+**Fuel gate (added November 23, 2026).** If ERC is below the 5th percentile of the PSA's large growth days, or 100-hr fuel moisture is above the 95th percentile, the level is capped at Low whatever the score. The dashboard marks these days with ⊘.
+
+The gate was added because wind and humidity alone could raise off-season days. For example, NC01 on November 23, 2026 had a 36 mph east wind forecast but ERC of 6, and scored Moderate.
+
+| PSA | NC01 | NC02 | NC03A | NC03B | NC04 | NC05 | NC06 | NC07 | NC08 |
+|---|---|---|---|---|---|---|---|---|---|
+| ERC below | 19.6 | 35.4 | 26.8 | 29.7 | 29.3 | 43.0 | 46.2 | 34.1 | 43.8 |
+| 100-hr FM above (%) | 18.1 | 13.7 | 16.2 | 13.9 | 15.7 | 12.1 | 11.7 | 13.9 | 13.1 |
+
+How the cutoffs were chosen, tested on 2012–2026:
+
+- **5th/95th percentile gate:** caps 24 of the 1,292 large growth days that had scored Moderate or higher, which is 0.9% of large-growth acres. None of them had scored Very High. The largest are Kelly on 8/24/2023 (Moderate) and Glass on 9/27/2020, its first day (High 4).
+- **10th/90th percentile gate:** rejected. It would have capped 58 such days, including Zogg and Doe on 9/28/2020 and Kincade on 10/24/2019, all wind-driven High days.
+
+The large growth rates by level barely change with the gate, because the historical record holds few fire-days with wet fuels. The gate matters mostly outside fire season.
+
 ## Sources
 
 - FEMS ext-climatology web services: https://fems.fs2c.usda.gov/api/ext-climatology/

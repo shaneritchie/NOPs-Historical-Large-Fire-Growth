@@ -67,37 +67,51 @@ PSA_STATIONS = {
 # Value = median of that variable on the PSA's large growth days, 2012-2026
 # (PSAs with < 40 large growth days are blended toward the PSA's 60th percentile
 # of all fire-days). _wind_event = PSA 90th percentile of daily peak gust.
+# Fuel gate: if ERC < _gate_ERC (5th percentile of ERC on the PSA's large growth
+# days) or 100-hr FM > _gate_F100 (95th percentile), fuels are not receptive and
+# the concern level is capped at Low, whatever the score. Checked on 2012-2026:
+# it caps 24 of 1,292 large growth days that scored Moderate or higher (0.9% of
+# large-growth acres) and none that scored Very High.
 THRESHOLDS = {
     "NC01": {"ERC": (">=", 29.1), "BI": (">=", 18.2), "IC": (">=", 14.7), "FFWI": (">=", 9.5), "GSpd": (">=", 14.3), "VPDA": (">=", 1044.6), "MxRH": ("<=", 87.0), "F100": ("<=", 15.2),
-             "_wind_event": (">=", 16.2)},
+             "_wind_event": (">=", 16.2),
+             "_gate_ERC": ("<", 19.6), "_gate_F100": (">", 18.1)},
     "NC02": {"ERC": (">=", 45.4), "BI": (">=", 27.9), "IC": (">=", 31.4), "FFWI": (">=", 17.0), "GSpd": (">=", 20.0), "VPDA": (">=", 1846.5), "MxRH": ("<=", 59.4), "F100": ("<=", 10.6),
-             "_wind_event": (">=", 23.8)},
+             "_wind_event": (">=", 23.8),
+             "_gate_ERC": ("<", 35.4), "_gate_F100": (">", 13.7)},
     "NC03A": {"ERC": (">=", 35.9), "BI": (">=", 22.4), "IC": (">=", 19.0), "FFWI": (">=", 14.6), "GSpd": (">=", 22.8), "VPDA": (">=", 1499.5), "MxRH": ("<=", 74.6), "F100": ("<=", 12.7),
-             "_wind_event": (">=", 26.4)},
+             "_wind_event": (">=", 26.4),
+             "_gate_ERC": ("<", 26.8), "_gate_F100": (">", 16.2)},
     "NC03B": {"ERC": (">=", 50.5), "BI": (">=", 31.9), "IC": (">=", 36.3), "FFWI": (">=", 22.7), "GSpd": (">=", 24.9), "VPDA": (">=", 2248.2), "MxRH": ("<=", 50.2), "F100": ("<=", 8.9),
-             "_wind_event": (">=", 33.1)},
+             "_wind_event": (">=", 33.1),
+             "_gate_ERC": ("<", 29.7), "_gate_F100": (">", 13.9)},
     "NC04": {"ERC": (">=", 47.4), "BI": (">=", 24.0), "IC": (">=", 28.3), "FFWI": (">=", 10.0), "GSpd": (">=", 16.0), "VPDA": (">=", 1944.0), "MxRH": ("<=", 64.0), "F100": ("<=", 10.6),
-             "_wind_event": (">=", 19.0)},
+             "_wind_event": (">=", 19.0),
+             "_gate_ERC": ("<", 29.3), "_gate_F100": (">", 15.7)},
     "NC05": {"ERC": (">=", 53.3), "BI": (">=", 29.2), "IC": (">=", 40.0), "FFWI": (">=", 15.1), "GSpd": (">=", 18.0), "VPDA": (">=", 2588.5), "MxRH": ("<=", 49.0), "F100": ("<=", 9.0),
-             "_wind_event": (">=", 23.9)},
+             "_wind_event": (">=", 23.9),
+             "_gate_ERC": ("<", 43.0), "_gate_F100": (">", 12.1)},
     "NC06": {"ERC": (">=", 52.4), "BI": (">=", 29.1), "IC": (">=", 36.0), "FFWI": (">=", 15.9), "GSpd": (">=", 21.0), "VPDA": (">=", 2132.0), "MxRH": ("<=", 52.0), "F100": ("<=", 9.6),
-             "_wind_event": (">=", 27.0)},
+             "_wind_event": (">=", 27.0),
+             "_gate_ERC": ("<", 46.2), "_gate_F100": (">", 11.7)},
     "NC07": {"ERC": (">=", 52.3), "BI": (">=", 27.6), "IC": (">=", 33.7), "FFWI": (">=", 13.5), "GSpd": (">=", 17.9), "VPDA": (">=", 1969.0), "MxRH": ("<=", 51.0), "F100": ("<=", 9.5),
-             "_wind_event": (">=", 22.0)},
+             "_wind_event": (">=", 22.0),
+             "_gate_ERC": ("<", 34.1), "_gate_F100": (">", 13.9)},
     "NC08": {"ERC": (">=", 53.6), "BI": (">=", 29.4), "IC": (">=", 37.4), "FFWI": (">=", 17.7), "GSpd": (">=", 24.0), "VPDA": (">=", 2174.3), "MxRH": ("<=", 53.7), "F100": ("<=", 9.0),
-             "_wind_event": (">=", 29.0)},
+             "_wind_event": (">=", 29.0),
+             "_gate_ERC": ("<", 43.8), "_gate_F100": (">", 13.1)},
 }
 
-HIST_LGD_RATE = {  # % of fire-days that were large growth days, 2012-2026
-    "NC01": {"Low": 23, "Moderate": 31, "High": 43, "Very High": 53},
-    "NC02": {"Low": 24, "Moderate": 25, "High": 30, "Very High": 48},
-    "NC03A": {"Low": 22, "Moderate": 80, "High": 64, "Very High": 75},
-    "NC03B": {"Low": 42, "Moderate": 46, "High": 54, "Very High": 62},
-    "NC04": {"Low": 12, "Moderate": 16, "High": 17, "Very High": 31},
-    "NC05": {"Low": 25, "Moderate": 42, "High": 36, "Very High": 48},
-    "NC06": {"Low": 22, "Moderate": 32, "High": 34, "Very High": 29},
-    "NC07": {"Low": 44, "Moderate": 42, "High": 38, "Very High": 40},
-    "NC08": {"Low": 23, "Moderate": 31, "High": 7, "Very High": 31},
+HIST_LGD_RATE = {  # % of fire-days at each level (fuel gate applied) that were large growth days, 2012-2026
+    "NC01": {"Low": 22, "Moderate": 33, "High": 43, "Very High": 53},
+    "NC02": {"Low": 24, "Moderate": 24, "High": 29, "Very High": 48},
+    "NC03A": {"Low": 24, "Moderate": 75, "High": 64, "Very High": 75},
+    "NC03B": {"Low": 38, "Moderate": 50, "High": 54, "Very High": 62},
+    "NC04": {"Low": 13, "Moderate": 16, "High": 17, "Very High": 31},
+    "NC05": {"Low": 27, "Moderate": 41, "High": 38, "Very High": 48},
+    "NC06": {"Low": 21, "Moderate": 32, "High": 39, "Very High": 29},
+    "NC07": {"Low": 43, "Moderate": 44, "High": 38, "Very High": 40},
+    "NC08": {"Low": 24, "Moderate": 30, "High": 8, "Very High": 31},
 }
 CONCERN_LEVELS = [(0, "Low"), (2, "Moderate"), (4, "High"), (6, "Very High")]
 
@@ -235,8 +249,14 @@ def score(df):
     df["Thresholds_Possible"] = poss
     df["Score_8"] = [round(h / p * 8) if p else None for h, p in zip(hits, poss)]
     df["Vars_Met"] = names
-    df["Concern"] = [[lbl for n0, lbl in CONCERN_LEVELS if s >= n0][-1] if s is not None else None
-                     for s in df["Score_8"]]
+    gate = []
+    for _, r in df.iterrows():
+        t = THRESHOLDS.get(r.PSA, {})
+        erc, f100 = r.get("ERC"), r.get("F100")
+        gate.append(int((pd.notna(erc) and erc < t["_gate_ERC"][1]) or (pd.notna(f100) and f100 > t["_gate_F100"][1])))
+    df["Fuel_Gate"] = gate
+    df["Concern"] = [None if s is None else ("Low" if g else [lbl for n0, lbl in CONCERN_LEVELS if s >= n0][-1])
+                     for s, g in zip(df["Score_8"], gate)]
     df["Hist_LGD_Rate_Pct"] = [HIST_LGD_RATE.get(p, {}).get(c) for p, c in zip(df.PSA, df.Concern)]
     df["Wind_Event"] = [int(r.GSpd >= THRESHOLDS.get(r.PSA, {}).get("_wind_event", (None, 999))[1])
                         if pd.notna(r.get("GSpd")) else 0 for _, r in df.iterrows()]
@@ -250,15 +270,17 @@ else:
 now = dt.datetime.now(dt.timezone.utc)
 today = (now - dt.timedelta(hours=LST_OFFSET_H)).date()
 
-cur = pd.concat([observed_sig(now), forecast_sig(today)], ignore_index=True)
+obs_df = observed_sig(now)
+base = obs_df.Date.iloc[0] if len(obs_df) else today   # before 1300 PST the latest obs is yesterday's
+cur = pd.concat([obs_df, forecast_sig(base)], ignore_index=True)
 cur = score(cur)
-cur["Day_Offset"] = [(d - today).days for d in cur.Date]
+cur["Day_Offset"] = [(d - base).days for d in cur.Date]
 cur["Date"] = cur.Date.astype(str)
 cur["Updated_UTC"] = now.strftime("%Y-%m-%d %H:%M")
 num = cur.select_dtypes("number").columns
 cur[num] = cur[num].round(1)
 for c in ("Stations", "Thresholds_Met", "Thresholds_Possible", "Score_8", "Hist_LGD_Rate_Pct",
-          "Wind_Event", "Day_Offset"):
+          "Wind_Event", "Fuel_Gate", "Day_Offset"):
     cur[c] = cur[c].astype("Int64")
 
 psa_geo = FeatureLayer(PSA_SERVICE).query(
@@ -289,6 +311,8 @@ def to_features(df, with_geom=True):
 
 lyr = FeatureLayer(SERVICE_URL + "/0", gis=gis)
 htab = FeatureLayer(SERVICE_URL + "/1", gis=gis)
+FIELDS = {f["name"] for f in lyr.properties.fields}
+cur = cur[[c for c in cur.columns if c in FIELDS or c == "PSA"]]
 
 # Current layer: replace everything
 lyr.delete_features(where="1=1")
