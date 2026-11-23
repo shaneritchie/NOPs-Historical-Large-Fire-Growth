@@ -98,3 +98,9 @@ hist_rows = {"fields": [k for k, _ in F], "rows": sorted(rows, key=lambda x: x[0
 # Same data as a script, so the dashboard's history tabs also work when index.html is opened as a local file
 (ROOT / "data" / "history_rows.js").write_text("window.HISTORY_ROWS = " + json.dumps(hist_rows, separators=(",", ":")) + ";\n")
 print("Wrote data/history_rows.json", len(rows), "rows")
+# Version tag so browsers re-fetch the history file after a rebuild instead of using a cached copy
+import hashlib
+build = hashlib.md5((ROOT / "data" / "history_rows.json").read_bytes()).hexdigest()[:10]
+with open(ROOT / "dashboard_data.js", "a") as fh:
+    fh.write(f'const BUILD = "{build}";\n')
+print("BUILD", build)
