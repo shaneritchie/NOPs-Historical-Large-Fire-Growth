@@ -56,7 +56,7 @@ The page uses FEMS hourly observations where they exist, and FEMS hourly forecas
 - ERC is below the 5th percentile of that PSA's large growth days.
 - 100-hr fuel moisture is above the 95th percentile.
 
-Such days are marked ⊘, meaning fuels are not receptive. This stops wind or dry air alone from raising the level when the fuels can't carry fire, for example a November east wind event. Tested on 2012–2026, it capped 26 of 1,456 large growth days that had scored Moderate or higher, which is 0.5% of large-growth acres. None of those had scored Very High. The gate values are in `data/psa_thresholds.json` (`_gate_ERC`, `_gate_F100`).
+Such days are marked ⊘, meaning fuels are not receptive. This stops wind or dry air alone from raising the level when the fuels can't carry fire, for example a November east wind event. Tested on 2012–2026, it capped 26 of 1,455 large growth days that had scored Moderate or higher, which is 0.5% of large-growth acres. None of those had scored Very High. The gate values are in `data/psa_thresholds.json` (`_gate_ERC`, `_gate_F100`).
 
 Across North Ops, 22% of fire-days at Low were large growth days, compared with 47% at Very High. The score works best in NC01–NC04. In NC05–NC07 weather alone separates large growth days less well. See `data/DATA_DICTIONARY.md` for the full analysis and caveats.
 

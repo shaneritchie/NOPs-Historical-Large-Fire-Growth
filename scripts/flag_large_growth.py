@@ -28,6 +28,10 @@ CSV = ROOT / "data" / "NOPs_Large_Fire_Growth_Days_2012_2026_SIG_Weather.csv"
 PSA_MIN = {"NC01": 50, "NC02": 75, "NC03A": 50, "NC03B": 150, "NC04": 75,
            "NC05": 150, "NC06": 150, "NC07": 50, "NC08": 400}
 CAP = 10000
+# Fire-days whose "growth" is a perimeter artifact, not fire spread. Never flagged.
+#   Haypress (River Complex) 9/19/2021: 193,414 ac in one day at max RH 98% and ERC 29, which
+#   doubles the fire's to-date acres; other River Complex fires' area was merged into its perimeter.
+ARTIFACTS = {("Haypress (River Complex)", "9/19/2021")}
 
 
 def cutoff(to_date, psa):
@@ -43,8 +47,9 @@ if "LargeGrowthDayFlag_Original" not in c.columns:
 to_date = (c.Fire_Size_Cumulative - c.Fire_Size).clip(lower=0)
 c["LGD_Cutoff_Acres"] = [round(cutoff(t, p)) for t, p in zip(to_date, c.PSANationa)]
 c["LargeGrowthDayFlag"] = (c.Fire_Size >= c.LGD_Cutoff_Acres).astype(int)
-cols = list(c.columns)
-cols.insert(cols.index("LargeGrowthDayFlag"), cols.pop(cols.index("LGD_Cutoff_Acres")))
+c.loc[[(n, d) in ARTIFACTS for n, d in zip(c.FireName, c.DateText)], "LargeGrowthDayFlag"] = 0
+cols = [k for k in c.columns if k != "LGD_Cutoff_Acres"]
+cols.insert(cols.index("LargeGrowthDayFlag"), "LGD_Cutoff_Acres")
 c = c[cols]
 c.to_csv(CSV, index=False)
 
