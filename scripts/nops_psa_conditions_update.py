@@ -117,9 +117,16 @@ CONCERN_LEVELS = [(0, "Low"), (2, "Moderate"), (4, "High"), (6, "Very High")]
 
 # =============================================================================
 def fems_csv(path, **params):
-    r = requests.get(FEMS + path, params=params, timeout=120)
-    r.raise_for_status()
-    return pd.read_csv(io.StringIO(r.text))
+    """GET one FEMS CSV. FEMS sometimes answers "Download Failed" (HTTP 400) when
+    busy, so retry up to 3 times with a growing pause."""
+    import time
+    for attempt in range(1, 5):
+        r = requests.get(FEMS + path, params=params, timeout=120)
+        if r.ok:
+            return pd.read_csv(io.StringIO(r.text))
+        if attempt == 4:
+            r.raise_for_status()
+        time.sleep(2 * attempt)
 
 def fems_by_psa(path, **params):
     """Same request for each PSA's stations (keeps URLs short), concatenated."""
