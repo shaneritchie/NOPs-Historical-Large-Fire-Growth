@@ -43,6 +43,7 @@ for p, g in list(c.groupby("PSANationa")) + [("ALL", c)]:
     lg = g[g.LargeGrowthDayFlag == 1]
     o = {"n": int(len(g)), "nlgd": int(len(lg)), "base": round(float(g.LargeGrowthDayFlag.mean() * 100), 1)}
     o["levels"] = [{"level": l, "days": int((g.L == l).sum()),
+                    "lgd": int(g[g.L == l].LargeGrowthDayFlag.sum()),
                     "rate": round(float(g[g.L == l].LargeGrowthDayFlag.mean() * 100), 1) if (g.L == l).sum() else None}
                    for l in LV]
     o["vars"] = {v: {"lgd": q(lg[v].dropna()), "oth": q(g[g.LargeGrowthDayFlag == 0][v].dropna())}
