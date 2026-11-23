@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NOPs PSA Fire Weather & Large Fire Growth Outlook</title>
+<style>
+:root{
+  color-scheme: light;
+  --page:#f9f9f7; --surface-1:#fcfcfb; --text-primary:#0b0b0b; --text-secondary:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
+  --series-1:#2a78d6; --series-2:#eb6834;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b; --nodata:#e1e0d9;
+  --accent:#2a78d6;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --page:#0d0d0d; --surface-1:#1a1a19; --text-primary:#f0efec; --text-secondary:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+    --series-1:#3987e5; --series-2:#d95926; --nodata:#383835; --accent:#3987e5;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --page:#0d0d0d; --surface-1:#1a1a19; --text-primary:#f0efec; --text-secondary:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+  --series-1:#3987e5; --series-2:#d95926; --nodata:#383835; --accent:#3987e5;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--text-primary);font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;padding:16px 24px;border-bottom:1px solid var(--border);background:var(--surface-1)}
+header h1{font-size:18px;margin:0;font-weight:600}
+header .sub{color:var(--text-secondary);font-size:13px}
+header .spacer{flex:1}
+button{font:inherit;border:1px solid var(--border);background:var(--surface-1);color:var(--text-primary);border-radius:6px;padding:6px 12px;cursor:pointer}
+button:hover{background:var(--grid)}
+button[aria-pressed="true"]{background:var(--text-primary);color:var(--surface-1);border-color:var(--text-primary)}
+main{padding:16px 24px 40px;display:grid;gap:16px;grid-template-columns:repeat(12,1fr);max-width:1500px;margin:0 auto}
+.card{background:var(--surface-1);border:1px solid var(--border);border-radius:10px;padding:16px;min-width:0}
+.card h2{font-size:15px;margin:0 0 4px;font-weight:600}
+.card .note{color:var(--text-secondary);font-size:12.5px;margin:0 0 12px}
+.span-5{grid-column:span 5}.span-7{grid-column:span 7}.span-12{grid-column:span 12}.span-6{grid-column:span 6}.span-4{grid-column:span 4}.span-8{grid-column:span 8}
+@media (max-width:1100px){.span-5,.span-7,.span-6,.span-4,.span-8{grid-column:span 12}}
+.days{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.days button{padding:4px 10px;font-size:13px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12.5px;color:var(--text-secondary);margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+.lvl{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:6px 8px;text-align:left;border-bottom:1px solid var(--grid)}
+th{color:var(--text-secondary);font-weight:500;font-size:12px}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.outlook td.cell{padding:3px}
+.chip{white-space:nowrap;display:flex;align-items:center;justify-content:center;gap:4px;border-radius:5px;height:30px;font-size:12px;font-weight:600;cursor:pointer;border:2px solid transparent;min-width:64px}
+.chip.sel{border-color:var(--text-primary)}
+.chip.fc{opacity:1}
+.ok{color:var(--good);font-weight:700}
+.muted{color:var(--muted)}
+.tip{position:fixed;pointer-events:none;background:var(--surface-1);color:var(--text-primary);border:1px solid var(--border);box-shadow:0 4px 16px rgba(0,0,0,.15);border-radius:8px;padding:8px 10px;font-size:12.5px;max-width:280px;z-index:10;display:none}
+.tip b{font-weight:600}
+svg text{fill:var(--text-secondary);font-size:11px}
+.status{padding:10px 14px;border-radius:8px;background:var(--grid);color:var(--text-primary);font-size:13px}
+.err{background:#fde8e8;color:#8a1c1c}
+select{font:inherit;padding:5px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface-1);color:var(--text-primary)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+footer{grid-column:span 12;color:var(--muted);font-size:12px;padding:4px 2px}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>NOPs PSA Fire Weather &amp; Large Fire Growth Outlook</h1>
+    <div class="sub" id="sub">Loading RAWS observations and forecasts from FEMS…</div>
+  </div>
+  <div class="spacer"></div>
+  <button id="refresh" type="button">Refresh</button>
+  <button id="theme" type="button" aria-label="Toggle dark mode">Dark</button>
+</header>
+<main>
+  <section class="card span-12" id="statusCard" style="display:none"><div id="status" class="status"></div></section>
+
+  <section class="card span-5">
+    <h2>Concern by PSA</h2>
+    <p class="note">Score = how many of 8 large-growth thresholds the PSA meets (forecast days use 6, scaled to 8). Click a PSA for details.</p>
+    <div class="days" id="days" role="group" aria-label="Day"></div>
+    <div id="map"></div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <section class="card span-7">
+    <h2>7-day outlook</h2>
+    <p class="note">Today's 1300 LST observation, then FEMS daily forecasts. Cell shows concern level and score (0–8). ▲ = large wind event (peak gust at or above the PSA's 90th percentile).</p>
+    <div style="overflow-x:auto"><table class="outlook" id="outlook"></table></div>
+  </section>
+
+  <section class="card span-6">
+    <h2 id="detailTitle">PSA detail</h2>
+    <p class="note" id="detailNote"></p>
+    <table id="detail"></table>
+  </section>
+
+  <section class="card span-6">
+    <h2 id="distTitle">Where this day sits in history</h2>
+    <p class="note">Bars show the middle half (25th–75th percentile) of each variable on large growth days and on other fire-days, 2012–2026; the tick is the median. The diamond is the selected day.</p>
+    <div id="dist"></div>
+    <div class="legend"><span><i class="sw" style="background:var(--series-2)"></i>Large growth days</span><span><i class="sw" style="background:var(--series-1)"></i>Other fire-days</span><span><svg width="12" height="12" viewBox="0 0 12 12"><path d="M6 1 L11 6 L6 11 L1 6Z" fill="var(--text-primary)"/></svg>Selected day</span></div>
+  </section>
+
+  <section class="card span-4">
+    <h2 id="rateTitle">How often fire-days became large growth days</h2>
+    <p class="note" id="rateNote"></p>
+    <div id="rate"></div>
+  </section>
+
+  <section class="card span-4">
+    <h2 id="monthTitle">Large growth days by month</h2>
+    <p class="note" id="monthNote"></p>
+    <div id="months"></div>
+  </section>
+
+  <section class="card span-4">
+    <h2 id="topTitle">Biggest growth days</h2>
+    <p class="note">Largest single-day growth, 2012–2026, with that day's concern level.</p>
+    <table id="top"></table>
+  </section>
+
+  <footer>
+    Data: RAWS observations, forecasts and NFDRS fuel model Y indices from the <a href="https://fems.fs2c.usda.gov/">FEMS</a> public climatology services, pulled live each time the page loads; PSA boundaries from the NIFC Predictive Service Area service. Historical statistics: 4,950 North Ops large fire-days, 2012–2026 (VIIRS perimeters), with PSA SIG weather from FEMS. Thresholds are the median value on each PSA's large growth days.
+    Concern levels describe how similar conditions are to past large growth days; they are not a forecast of fire behavior.
+  </footer>
+</main>
+<div class="tip" id="tip"></div>
+
+<script src="dashboard_data.js"></script>
+<script>
+const FEMS = "https://fems.fs2c.usda.gov/api/ext-climatology/";
+const PSA_URL = "https://services3.arcgis.com/T4QMspbfLg3qTGWY/ArcGIS/rest/services/DMP_Predictive_Service_Area__PSA_Boundaries_Public/FeatureServer/0/query";
+const PSAS = Object.keys(CFG.ST);
+const LEVELS = [[0,"Low","good"],[2,"Moderate","warning"],[4,"High","serious"],[6,"Very High","critical"]];
+const LVL = Object.fromEntries(LEVELS.map(([n,l,s])=>[l,s]));
+const ICON = {"Low":"●","Moderate":"▲","High":"◆","Very High":"■"};
+const INK = {"Low":"#fff","Moderate":"#0b0b0b","High":"#0b0b0b","Very High":"#fff"};
+const VARS = [["ERC","ERC",">="],["BI","BI",">="],["IC","IC",">="],["FFWI","FFWI",">="],["GSpd","Peak gust (mph)",">="],["VPDA","VPD avg (Pa)",">="],["MxRH","Max RH (%)","<="],["F100","100-hr FM (%)","<="]];
+const OTHER = [["Temp","Temp 1300 (°F)"],["MaxT","Max temp (°F)"],["RH","RH 1300 (%)"],["Wind","Wind 1300 (mph)"],["Rain","Rain 24 h (in)"],["F1000","1000-hr FM (%)"],["SC","SC"]];
+
+let ROWS = [], GEO = {}, NAMES = {}, sel = {psa:"NC04", day:0};
+const $ = id => document.getElementById(id);
+const fmt = (v,d=1) => v==null||isNaN(v) ? "–" : (Math.abs(v)>=100? Math.round(v).toLocaleString() : (+v).toFixed(d).replace(/\.0$/,""));
+
+/* ---------- theme ---------- */
+$("theme").onclick = () => {
+  const dark = document.documentElement.getAttribute("data-theme")==="dark" ||
+    (!document.documentElement.hasAttribute("data-theme") && matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.setAttribute("data-theme", dark ? "light" : "dark");
+  $("theme").textContent = dark ? "Dark" : "Light";
+};
+
+/* ---------- FEMS helpers ---------- */
+function parseCSV(t){
+  const L=t.trim().split(/\r?\n/); if(L.length<2||L[0][0]==="{") return [];
+  const h=L[0].split(",").map(s=>s.replace(/"/g,""));
+  return L.slice(1).map(l=>{const v=l.match(/("([^"]*)"|[^,]*)(,|$)/g).map(x=>x.replace(/,$/,"").replace(/^"|"$/g,""));
+    const o={};h.forEach((k,i)=>{const x=v[i];o[k]=(x===""||x===undefined)?null:(isNaN(+x)?x:+x)});return o;});
+}
+const z = d => d.toISOString().slice(0,19)+"Z";
+const mean = a => {a=a.filter(x=>x!=null&&!isNaN(x));return a.length?a.reduce((s,x)=>s+x,0)/a.length:null};
+const mx = a => {a=a.filter(x=>x!=null);return a.length?Math.max(...a):null};
+const cmean = a => {a=a.filter(x=>x!=null&&!isNaN(x));if(!a.length)return null;let s=0,c=0;a.forEach(d=>{s+=Math.sin(d*Math.PI/180);c+=Math.cos(d*Math.PI/180)});let v=Math.round(Math.atan2(s,c)*180/Math.PI);v=((v%360)+360)%360;return v===0?360:v};
+function ffwi(T,H,U){if([T,H,U].some(x=>x==null))return null;const m=H<10?0.03229+0.281073*H-0.000578*H*T:H<50?2.22749+0.160107*H-0.01478*T:21.0606+0.005565*H*H-0.00035*H*T-0.483199*H;const x=m/30;return (1-2*x+1.5*x*x-0.5*x**3)*Math.sqrt(1+U*U)/0.3002}
+async function getCSV(path){const r=await fetch(FEMS+path);if(!r.ok) throw new Error(`FEMS ${r.status}`);return parseCSV(await r.text());}
+const dstr = ms => new Date(ms).toISOString().slice(0,10);
+
+async function loadPSA(psa, obs, base){
+  const ids = CFG.ST[psa].join(","), d = k => dstr(Date.parse(base+"T00:00:00Z")+k*864e5);
+  const [WX,NF,FW,FN] = await Promise.all([
+    getCSV(`download-weather?stationIds=${ids}&startDate=${z(new Date(obs-23*3600e3))}&endDate=${z(new Date(obs+10*3600e3))}&dataset=observation&dataFormat=csv&dataIncrement=hourly`),
+    getCSV(`download-nfdr?stationIds=${ids}&startDate=${z(new Date(obs-3600e3))}&endDate=${z(new Date(obs+3600e3))}&dataset=observation&dataFormat=csv&fuelModels=Y&dateTimeFormat=UTC`),
+    getCSV(`download-wx-daily-summary/?dataset=forecast&startDate=${d(1)}&endDate=${d(6)}&dataFormat=csv&stationIds=${ids}`),
+    getCSV(`download-nfdr-daily-summary/?dataset=forecast&startDate=${d(1)}&endDate=${d(6)}&dataFormat=csv&stationIds=${ids}&fuelModels=Y`)]);
+  const t = s => Date.parse(s), per = [];
+  for (const s of CFG.ST[psa].map(Number)){
+    const w = WX.filter(r=>r.StationId===s); if(!w.length || w.every(r=>r["Temperature(F)"]==null)) continue;
+    const o = w.find(r=>t(r.DateTime)===obs)||{};
+    const day = w.filter(r=>t(r.DateTime)>=obs-13*3600e3 && t(r.DateTime)<obs+11*3600e3);
+    const rain = w.filter(r=>t(r.DateTime)>obs-24*3600e3 && t(r.DateTime)<=obs).map(r=>r["Precipitation(in)"]).filter(x=>x!=null);
+    const n = NF.filter(r=>r.stationId===s && t(r.observationTime)===obs);
+    const gs = day.filter(r=>r["GustSpeed(mph)"]!=null), g = gs.length ? gs.reduce((a,b)=>b["GustSpeed(mph)"]>a["GustSpeed(mph)"]?b:a) : null;
+    const T=o["Temperature(F)"]??null, H=o["RelativeHumidity(%)"]??null, U=o["WindSpeed(mph)"]??null;
+    per.push({Temp:T,MaxT:mx(day.map(r=>r["Temperature(F)"])),RH:H,MxRH:mx(day.map(r=>r["RelativeHumidity(%)"])),
+      Rain:rain.length?rain.reduce((a,b)=>a+b,0):null,Wind:U,WDIR:U>0?o["WindAzimuth(degrees)"]:null,
+      GSpd:g?g["GustSpeed(mph)"]:null,GDir:g?g["GustAzimuth(degrees)"]:null,VPDM:mx(day.map(r=>r["VPD(Pa)"])),VPDA:mean(day.map(r=>r["VPD(Pa)"])),FFWI:ffwi(T,H,U),
+      SC:mean(n.map(r=>r.spreadComponent)),ERC:mean(n.map(r=>r.energyReleaseComponent)),BI:mean(n.map(r=>r.burningIndex)),IC:mean(n.map(r=>r.ignitionComponent)),F100:mean(n.map(r=>r.hundredHR_TL_FuelMoisture)),F1000:mean(n.map(r=>r.thousandHR_TL_FuelMoisture))});
+  }
+  const rows = [];
+  const ob = {PSA:psa, Date:base, Day:0, Type:"Observed", Stations:per.length};
+  for (const k of ["Temp","MaxT","RH","MxRH","Rain","Wind","GSpd","VPDM","VPDA","FFWI","SC","ERC","BI","IC","F100","F1000"]) ob[k]=mean(per.map(x=>x[k]));
+  ob.WDIR=cmean(per.map(x=>x.WDIR)); ob.GDir=cmean(per.map(x=>x.GDir)); rows.push(ob);
+  for (const dd of [...new Set([...FW.map(r=>r.Date),...FN.map(r=>r.ObservationTime)])].sort()){
+    const wd=FW.filter(r=>r.Date===dd), nd=FN.filter(r=>r.ObservationTime===dd);
+    rows.push({PSA:psa,Date:dd,Day:Math.round((Date.parse(dd)-Date.parse(base))/864e5),Type:"Forecast",Stations:wd.length,
+      MaxT:mean(wd.map(r=>r["TemperatureMax(F)"])),RH:mean(wd.map(r=>r["RelativeHumidityMin(%)"])),MxRH:mean(wd.map(r=>r["RelativeHumidityMax(%)"])),
+      Rain:mean(wd.map(r=>r["Precipitation24hr(in)"])),Wind:mean(wd.map(r=>r["WindSpeedMax(mph)"])),GSpd:mean(wd.map(r=>r["GustSpeedMax(mph)"])),GDir:cmean(wd.map(r=>r["GustDirection(degrees)"])),
+      VPDM:mean(wd.map(r=>r["VPDMax(Pa)"])),SC:mean(nd.map(r=>r.SC)),ERC:mean(nd.map(r=>r.ERC)),BI:mean(nd.map(r=>r.BI)),IC:mean(nd.map(r=>r.IC)),F100:mean(nd.map(r=>r["100HrFM"])),F1000:mean(nd.map(r=>r["1000HrFM"]))});
+  }
+  return rows.map(score);
+}
+function score(r){
+  const th = CFG.TH[r.PSA]; let met=[], n=0;
+  for (const [v,[op,val]] of Object.entries(th)){ if(v[0]==="_") continue; const x=r[v]; if(x==null||isNaN(x)) continue; n++; if(op===">="?x>=val:x<=val) met.push(v); }
+  r.Met=met; r.Possible=n; r.Score=n?Math.round(met.length/n*8):null;
+  r.Concern = r.Score==null ? null : LEVELS.filter(([a])=>r.Score>=a).pop()[1];
+  r.Rate = r.Concern ? CFG.HR[r.PSA][r.Concern] : null;
+  r.WindEvent = r.GSpd!=null && r.GSpd>=th._wind_event[1];
+  return r;
+}
+
+async function loadAll(){
+  $("statusCard").style.display="none";
+  $("sub").textContent = "Loading RAWS observations and forecasts from FEMS…";
+  const now = Date.now(); let o = new Date(); o = Date.UTC(o.getUTCFullYear(),o.getUTCMonth(),o.getUTCDate(),21); if (o>now) o -= 864e5;
+  const base = dstr(o - 8*3600e3);
+  try{
+    const geoP = Object.keys(GEO).length ? null : fetch(PSA_URL+"?where="+encodeURIComponent("PSANationalCode IN ('"+PSAS.join("','")+"')")+"&outFields=PSANationalCode,PSANAME&outSR=4326&maxAllowableOffset=0.004&geometryPrecision=3&f=json").then(r=>r.json());
+    const res = await Promise.allSettled(PSAS.map(p=>loadPSA(p,o,base)));
+    ROWS = res.flatMap(r=>r.status==="fulfilled"?r.value:[]);
+    const failed = PSAS.filter((p,i)=>res[i].status!=="fulfilled");
+    if (geoP){ const g = await geoP; (g.features||[]).forEach(f=>{GEO[f.attributes.PSANationalCode]=f.geometry.rings;NAMES[f.attributes.PSANationalCode]=f.attributes.PSANAME;}); }
+    const obsLocal = new Date(o).toLocaleString([], {weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit",timeZoneName:"short"});
+    $("sub").textContent = `Observed ${obsLocal} (1300 PST) · forecasts through ${dstr(Date.parse(base)+6*864e5)} · loaded ${new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}`;
+    if (failed.length){ $("statusCard").style.display=""; $("status").className="status err"; $("status").textContent=`Could not load FEMS data for ${failed.join(", ")}. Try Refresh.`; }
+  }catch(e){
+    $("statusCard").style.display=""; $("status").className="status err"; $("status").textContent="Could not reach FEMS: "+e.message;
+  }
+  render();
+}
+$("refresh").onclick = loadAll;
+
+/* ---------- rendering ---------- */
+const tip = $("tip");
+function showTip(e, html){ tip.innerHTML=html; tip.style.display="block"; const x=Math.min(e.clientX+14, innerWidth-tip.offsetWidth-8), y=Math.min(e.clientY+14, innerHeight-tip.offsetHeight-8); tip.style.left=x+"px"; tip.style.top=y+"px"; }
+function hideTip(){ tip.style.display="none"; }
+const row = (p,d) => ROWS.find(r=>r.PSA===p && r.Day===d);
+const lvlLabel = c => c ? `<span class="lvl"><i class="sw" style="background:var(--${LVL[c]})"></i>${c}</span>` : `<span class="muted">No data</span>`;
+const dayName = d => { const r = ROWS.find(x=>x.Day===d); if(!r) return d===0?"Today":"+"+d; const dt=new Date(r.Date+"T12:00:00"); return (d===0?"Obs ":"")+dt.toLocaleDateString([], {weekday:"short", month:"numeric", day:"numeric"}); };
+
+function render(){ renderDays(); renderMap(); renderOutlook(); renderDetail(); renderDist(); renderHist(); }
+
+function renderDays(){
+  const days=[...new Set(ROWS.map(r=>r.Day))].sort((a,b)=>a-b);
+  $("days").innerHTML = days.map(d=>`<button type="button" aria-pressed="${d===sel.day}" data-d="${d}">${dayName(d)}</button>`).join("");
+  $("days").querySelectorAll("button").forEach(b=>b.onclick=()=>{sel.day=+b.dataset.d;render();});
+  $("legend").innerHTML = LEVELS.map(([n,l,s])=>`<span><i class="sw" style="background:var(--${s})"></i>${l} (${n}${n===6?"–8":"–"+(n+1)})</span>`).join("")+`<span><i class="sw" style="background:var(--nodata)"></i>No data</span>`;
+}
+
+function renderMap(){
+  const W=460,H=520; let xs=[],ys=[];
+  const k=Math.cos(39.5*Math.PI/180);
+  Object.values(GEO).forEach(rs=>rs.forEach(r=>r.forEach(([x,y])=>{xs.push(x*k);ys.push(y);})));
+  if(!xs.length){ $("map").innerHTML='<p class="muted">PSA boundaries unavailable.</p>'; return; }
+  const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
+  const s=Math.min((W-20)/(x1-x0),(H-20)/(y1-y0)), ox=(W-(x1-x0)*s)/2, oy=(H-(y1-y0)*s)/2;
+  const P=([x,y])=>[ox+(x*k-x0)*s, oy+(y1-y)*s];
+  let svg=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Map of North Ops PSAs colored by concern level">`;
+  for (const p of PSAS){
+    const rs=GEO[p]; if(!rs) continue; const r=row(p,sel.day);
+    const fill = r&&r.Concern ? `var(--${LVL[r.Concern]})` : "var(--nodata)";
+    const d = rs.map(ring=>"M"+ring.map(pt=>P(pt).map(v=>v.toFixed(1)).join(",")).join("L")+"Z").join("");
+    svg+=`<path d="${d}" fill="${fill}" fill-opacity="0.85" stroke="var(--surface-1)" stroke-width="${p===sel.psa?0:1.5}" data-p="${p}" style="cursor:pointer"/>`;
+  }
+  const sp = GEO[sel.psa];
+  if (sp){ svg+=`<path d="${sp.map(ring=>"M"+ring.map(pt=>P(pt).map(v=>v.toFixed(1)).join(",")).join("L")+"Z").join("")}" fill="none" stroke="var(--text-primary)" stroke-width="2.5" pointer-events="none"/>`; }
+  for (const p of PSAS){
+    const rs=GEO[p]; if(!rs) continue; const big=rs.reduce((a,b)=>b.length>a.length?b:a);
+    let cx=0,cy=0; big.forEach(pt=>{const q=P(pt);cx+=q[0];cy+=q[1];}); cx/=big.length; cy/=big.length;
+    const NUDGE={NC03A:[-26,-10],NC03B:[26,16]}; if(NUDGE[p]){cx+=NUDGE[p][0];cy+=NUDGE[p][1];}
+    const r=row(p,sel.day);
+    const ink = r&&r.Concern ? INK[r.Concern] : "var(--text-primary)";
+    svg+=`<text x="${cx}" y="${cy}" text-anchor="middle" style="fill:${ink};font-size:12px;font-weight:600" pointer-events="none">${p}</text>`;
+    if (r && r.Score!=null) svg+=`<text x="${cx}" y="${cy+14}" text-anchor="middle" style="fill:${ink};font-size:11px" pointer-events="none">${r.Score}/8</text>`;
+  }
+  $("map").innerHTML=svg+"</svg>";
+  $("map").querySelectorAll("path[data-p]").forEach(el=>{
+    el.onmousemove=e=>{const p=el.dataset.p,r=row(p,sel.day); showTip(e, `<b>${p} – ${NAMES[p]||""}</b><br>${r?lvlLabel(r.Concern)+` · score ${r.Score}/8`:"No data"}${r&&r.Met.length?`<br>Over threshold: ${r.Met.join(", ")}`:""}${r&&r.Rate!=null?`<br>Historically ${r.Rate}% of fire-days at this level were large growth days`:""}`);};
+    el.onmouseleave=hideTip; el.onclick=()=>{sel.psa=el.dataset.p;render();};
+  });
+}
+
+function renderOutlook(){
+  const days=[...new Set(ROWS.map(r=>r.Day))].sort((a,b)=>a-b);
+  let h=`<thead><tr><th>PSA</th>${days.map(d=>`<th>${dayName(d)}</th>`).join("")}</tr></thead><tbody>`;
+  for (const p of PSAS){
+    h+=`<tr><td><b>${p}</b><div class="muted" style="font-size:11.5px">${NAMES[p]||""}</div></td>`;
+    for (const d of days){
+      const r=row(p,d);
+      if(!r||r.Concern==null){h+=`<td class="cell"><div class="chip" style="background:var(--nodata)" data-p="${p}" data-d="${d}">–</div></td>`;continue;}
+      const isSel = p===sel.psa && d===sel.day;
+      h+=`<td class="cell"><div class="chip${isSel?" sel":""}" style="background:var(--${LVL[r.Concern]});color:${INK[r.Concern]}" data-p="${p}" data-d="${d}" title="${r.Concern}, score ${r.Score}/8">${r.Concern==="Very High"?"V.High":r.Concern} ${r.Score}${r.WindEvent?" ▲":""}</div></td>`;
+    }
+    h+="</tr>";
+  }
+  $("outlook").innerHTML=h+"</tbody>";
+  $("outlook").querySelectorAll(".chip").forEach(c=>{
+    c.onclick=()=>{sel.psa=c.dataset.p;sel.day=+c.dataset.d;render();};
+    c.onmousemove=e=>{const r=row(c.dataset.p,+c.dataset.d); if(!r) return; showTip(e,`<b>${r.PSA} · ${r.Date}</b> (${r.Type.toLowerCase()})<br>${lvlLabel(r.Concern)} · ${r.Met.length} of ${r.Possible} thresholds${r.Met.length?": "+r.Met.join(", "):""}<br>Peak gust ${fmt(r.GSpd)} mph · ERC ${fmt(r.ERC)} · min RH ${fmt(r.RH)}%${r.WindEvent?"<br>▲ Large wind event":""}`);};
+    c.onmouseleave=hideTip;
+  });
+}
+
+function renderDetail(){
+  const r=row(sel.psa,sel.day), th=CFG.TH[sel.psa];
+  $("detailTitle").textContent=`${sel.psa} ${NAMES[sel.psa]||""} · ${r?r.Date:""}`;
+  if(!r){ $("detail").innerHTML=""; $("detailNote").textContent="No data for this PSA and day."; return; }
+  $("detailNote").innerHTML=`${r.Type==="Observed"?`1300 LST observation, average of ${r.Stations} RAWS`:`FEMS forecast, average of ${r.Stations} RAWS (daily max/min values)`} · ${lvlLabel(r.Concern)} · score ${r.Score}/8 · historically ${r.Rate}% of ${sel.psa} fire-days at this level were large growth days.`;
+  let h=`<thead><tr><th>Variable</th><th class="num">Value</th><th class="num">Threshold</th><th>Met</th></tr></thead><tbody>`;
+  for (const [v,lab,op] of VARS){
+    const x=r[v], t=th[v][1], has=x!=null&&!isNaN(x), met=r.Met.includes(v);
+    h+=`<tr><td>${lab}</td><td class="num">${fmt(x)}</td><td class="num">${op==="<="?"≤ ":"≥ "}${fmt(t)}</td><td>${!has?'<span class="muted">not in forecast</span>':met?'<span class="ok">✓ Yes</span>':'<span class="muted">No</span>'}</td></tr>`;
+  }
+  h+=`<tr><td>Large wind event</td><td class="num">${fmt(r.GSpd)}</td><td class="num">≥ ${fmt(th._wind_event[1])}</td><td>${r.GSpd==null?'<span class="muted">–</span>':r.WindEvent?'<span class="ok">✓ Yes</span>':'<span class="muted">No</span>'}</td></tr>`;
+  h+=`<tr><td colspan="4" style="padding-top:12px;color:var(--text-secondary);font-size:12px">Other conditions</td></tr>`;
+  for (const [v,lab] of OTHER){ if(r[v]==null) continue; h+=`<tr><td>${lab}</td><td class="num">${fmt(r[v],v==="Rain"?2:1)}</td><td></td><td></td></tr>`; }
+  if (r.GDir!=null) h+=`<tr><td>Peak gust direction (°)</td><td class="num">${r.GDir}</td><td></td><td></td></tr>`;
+  $("detail").innerHTML=h+"</tbody>";
+}
+
+function renderDist(){
+  const H=HIST[sel.psa], r=row(sel.psa,sel.day);
+  $("distTitle").textContent=`Where this day sits in ${sel.psa} history`;
+  const W=560, rowH=34, L=120, R=20, n=VARS.length, Ht=n*rowH+24;
+  let svg=`<svg viewBox="0 0 ${W} ${Ht}" width="100%" role="img" aria-label="Selected day compared with historical ranges">`;
+  VARS.forEach(([v,lab],i)=>{
+    const a=H.vars[v].lgd, b=H.vars[v].oth, x=r?r[v]:null;
+    const vals=[a[0],a[4],b[0],b[4]].concat(x!=null&&!isNaN(x)?[x]:[]);
+    let lo=Math.min(...vals), hi=Math.max(...vals); const pad=(hi-lo)*0.08||1; lo-=pad; hi+=pad;
+    const X=t=>L+(t-lo)/(hi-lo)*(W-L-R), y=12+i*rowH;
+    svg+=`<text x="0" y="${y+15}">${lab}</text><line x1="${L}" x2="${W-R}" y1="${y+rowH-4}" y2="${y+rowH-4}" stroke="var(--grid)"/>`;
+    svg+=`<text x="${L}" y="${y+rowH-7}" style="font-size:9.5px">${fmt(lo)}</text><text x="${W-R}" y="${y+rowH-7}" text-anchor="end" style="font-size:9.5px">${fmt(hi)}</text>`;
+    [[a,"var(--series-2)",y+3,"Large growth days"],[b,"var(--series-1)",y+13,"Other fire-days"]].forEach(([q,c,yy,name])=>{
+      svg+=`<rect x="${X(q[1])}" y="${yy}" width="${Math.max(2,X(q[3])-X(q[1]))}" height="8" rx="4" fill="${c}" data-t="${lab}: ${name}<br>middle half ${fmt(q[1])}–${fmt(q[3])}, median ${fmt(q[2])}"/>`;
+      svg+=`<rect x="${X(q[2])-1}" y="${yy-1}" width="2" height="10" fill="var(--text-primary)" pointer-events="none"/>`;
+    });
+    if(x!=null&&!isNaN(x)){ const cx=X(x),cy=y+12; svg+=`<path d="M${cx} ${cy-7} L${cx+7} ${cy} L${cx} ${cy+7} L${cx-7} ${cy}Z" fill="var(--text-primary)" stroke="var(--surface-1)" stroke-width="2" data-t="${lab}: selected day ${fmt(x)}"/>`; }
+  });
+  $("dist").innerHTML=svg+"</svg>";
+  $("dist").querySelectorAll("[data-t]").forEach(el=>{el.onmousemove=e=>showTip(e,el.dataset.t);el.onmouseleave=hideTip;});
+}
+
+function bars(el, labels, vals, opts){
+  const W=360,H=210,L=34,B=28,T=18,max=opts.max||Math.max(...vals.map(v=>v||0))*1.15||1;
+  const bw=(W-L-10)/labels.length;
+  let svg=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${opts.aria}">`;
+  const ticks=4; for(let i=0;i<=ticks;i++){const v=max*i/ticks,y=H-B-(H-B-T)*i/ticks; svg+=`<line x1="${L}" x2="${W-6}" y1="${y}" y2="${y}" stroke="${i?"var(--grid)":"var(--axis)"}"/><text x="${L-5}" y="${y+4}" text-anchor="end" style="font-size:10px">${Math.round(v)}${opts.unit||""}</text>`;}
+  vals.forEach((v,i)=>{ if(v==null) return; const h=(H-B-T)*v/max, x=L+i*bw+bw*0.18, w=bw*0.64, y=H-B-h;
+    const c=opts.colors?opts.colors[i]:"var(--series-1)";
+    svg+=`<path d="M${x} ${H-B} V${y+Math.min(4,h)} Q${x} ${y} ${x+4} ${y} H${x+w-4} Q${x+w} ${y} ${x+w} ${y+Math.min(4,h)} V${H-B}Z" fill="${c}" data-t="${opts.tip(i)}"/>`;
+    if(opts.label) svg+=`<text x="${x+w/2}" y="${y-5}" text-anchor="middle" style="font-size:11px;fill:var(--text-primary)">${opts.label(v)}</text>`;
+    svg+=`<rect x="${L+i*bw}" y="${T}" width="${bw}" height="${H-B-T}" fill="transparent" data-t="${opts.tip(i)}"/>`;
+  });
+  labels.forEach((l,i)=>svg+=`<text x="${L+i*bw+bw/2}" y="${H-B+16}" text-anchor="middle" style="font-size:10.5px">${l}</text>`);
+  el.innerHTML=svg+"</svg>";
+  el.querySelectorAll("[data-t]").forEach(n=>{n.onmousemove=e=>showTip(e,n.dataset.t);n.onmouseleave=hideTip;});
+}
+
+function renderHist(){
+  const H=HIST[sel.psa];
+  $("rateTitle").textContent=`${sel.psa}: how often fire-days became large growth days`;
+  $("rateNote").textContent=`Share of ${H.n.toLocaleString()} fire-days at each concern level that were large growth days (overall ${H.base}%). A rising pattern means the score is useful in this PSA.`;
+  bars($("rate"), LEVELS.map(l=>l[1]), H.levels.map(l=>l.rate), {max:100,unit:"%",aria:"Large growth rate by concern level",
+    colors:LEVELS.map(l=>`var(--${l[2]})`), label:v=>v+"%", tip:i=>`<b>${H.levels[i].level}</b><br>${H.levels[i].rate??"–"}% of ${H.levels[i].days} fire-days were large growth days`});
+  $("monthTitle").textContent=`${sel.psa}: large growth days by month`;
+  $("monthNote").textContent=`${H.nlgd.toLocaleString()} large growth days, 2012–2026.`;
+  const M=["J","F","M","A","M","J","J","A","S","O","N","D"], MN=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  bars($("months"), M, H.months, {aria:"Large growth days by month", tip:i=>`<b>${MN[i]}</b><br>${H.months[i]} large growth days`});
+  $("topTitle").textContent=`${sel.psa}: biggest growth days`;
+  $("top").innerHTML=`<thead><tr><th>Date</th><th>Fire</th><th class="num">Acres</th><th>Level</th></tr></thead><tbody>`+
+    H.top.map(t=>`<tr><td>${t.date}</td><td>${t.fire}${sel.psa==="ALL"?` <span class="muted">${t.psa}</span>`:""}</td><td class="num">${t.acres.toLocaleString()}</td><td>${lvlLabel(t.L)} ${t.S}</td></tr>`).join("")+"</tbody>";
+}
+
+loadAll();
+</script>
+</body>
+</html>

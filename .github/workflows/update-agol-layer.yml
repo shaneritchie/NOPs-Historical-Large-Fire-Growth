@@ -1,0 +1,37 @@
+# Optional: runs scripts/nops_psa_conditions_update.py on a schedule to refresh the
+# ArcGIS Online layer "NOPs PSA Fire Weather Conditions" (NIFC org).
+#
+# It does nothing until you add two repository secrets (Settings > Secrets and
+# variables > Actions): AGOL_USER and AGOL_PASS for an account that can edit the layer.
+# Check with your ArcGIS admin before storing a shared account's password here.
+# To run on a schedule, uncomment the "schedule" block.
+name: Update ArcGIS Online PSA conditions
+
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: "17 14,18,22,2 * * *"   # about 6am, 10am, 2pm, 6pm Pacific (UTC times)
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check secrets
+        id: check
+        env:
+          AGOL_USER: ${{ secrets.AGOL_USER }}
+        run: |
+          if [ -z "$AGOL_USER" ]; then echo "AGOL_USER secret not set; skipping."; echo "skip=true" >> "$GITHUB_OUTPUT"; fi
+      - name: Install packages
+        if: steps.check.outputs.skip != 'true'
+        run: pip install arcgis pandas requests
+      - name: Update layer
+        if: steps.check.outputs.skip != 'true'
+        env:
+          AGOL_USER: ${{ secrets.AGOL_USER }}
+          AGOL_PASS: ${{ secrets.AGOL_PASS }}
+        run: python scripts/nops_psa_conditions_update.py
