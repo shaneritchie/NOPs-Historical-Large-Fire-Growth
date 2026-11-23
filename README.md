@@ -48,9 +48,9 @@ Forecast days don't include FFWI or average VPD, so their score is scaled to 8 f
 - ERC is below the 5th percentile of that PSA's large growth days.
 - 100-hr fuel moisture is above the 95th percentile.
 
-Such days are marked ⊘, meaning fuels are not receptive. This stops wind or dry air alone from raising the level when the fuels can't carry fire, for example a November east wind event. Tested on 2012–2026, it capped 24 of 1,292 large growth days that had scored Moderate or higher, which is 0.9% of large-growth acres. None of those had scored Very High. The gate values are in `data/psa_thresholds.json` (`_gate_ERC`, `_gate_F100`).
+Such days are marked ⊘, meaning fuels are not receptive. This stops wind or dry air alone from raising the level when the fuels can't carry fire, for example a November east wind event. Tested on 2012–2026, it capped 23 of 1,291 large growth days that had scored Moderate or higher, which is 0.8% of large-growth acres. None of those had scored Very High. The gate values are in `data/psa_thresholds.json` (`_gate_ERC`, `_gate_F100`).
 
-Across North Ops, 19% of fire-days at Low were large growth days, compared with 36% at Very High. The score works best in NC01–NC05. In NC06–NC08 weather alone separates large growth days poorly. See `data/DATA_DICTIONARY.md` for the full analysis and caveats.
+Across North Ops, 19% of fire-days at Low were large growth days, compared with 37% at Very High. The score works best in NC01–NC05. In NC06–NC08 weather alone separates large growth days poorly. See `data/DATA_DICTIONARY.md` for the full analysis and caveats.
 
 Concern levels describe how similar conditions are to past large growth days. They are not a forecast of fire behavior.
 
@@ -68,8 +68,10 @@ Concern levels describe how similar conditions are to past large growth days. Th
 | `data/history_rows.json`, `data/history_rows.js` | One row per fire-day with the fields the history tabs use; the `.js` copy is for opening the page as a local file (generated) |
 | `scripts/build_dashboard.py` | Rebuilds `dashboard_data.js` and the `data/history_rows` files from the historical CSV and the thresholds in the update script |
 | `scripts/nops_psa_conditions_update.py` | Updates the ArcGIS Online layer "NOPs PSA Fire Weather Conditions" (NIFC org) with the same calculations. Holds the PSA station lists and thresholds. |
-| `data/NOPs_Large_Fire_Growth_Days_2012_2026_SIG_Weather.csv` | 4,950 large fire-days with PSA SIG weather, lightning and event flags |
+| `data/NOPs_Large_Fire_Growth_Days_2012_2026_SIG_Weather.csv` | 4,930 large fire-days with PSA SIG weather, lightning and event flags |
 | `data/NOPs_2012_2020_FireFamilyPlus_SIG_Values_Archive.csv` | Original FireFamily+ values for 2012–2020, replaced in the main file by FEMS values |
+| `data/removed_rx_pile_burn_fire_days.csv` | 20 off-season fire-days removed as Rx or pile burns (see the data dictionary) |
+| `scripts/compute_thresholds.py` | Recomputes fire-start counts, wind event thresholds, scoring thresholds, the fuel gate and historical rates from the dataset |
 | `data/psa_thresholds.json` | Per-PSA thresholds used for scoring |
 | `data/DATA_DICTIONARY.md` | Column reference, methods, analysis and known issues |
 | `.github/workflows/update-agol-layer.yml` | Optional GitHub Actions job to run the ArcGIS Online update on a schedule (off by default) |
@@ -77,7 +79,7 @@ Concern levels describe how similar conditions are to past large growth days. Th
 ## Updating
 
 - **Changing stations or thresholds:** edit `PSA_STATIONS`, `THRESHOLDS` and `HIST_LGD_RATE` in `scripts/nops_psa_conditions_update.py`, then run `python scripts/build_dashboard.py` (needs `pandas`) to regenerate `dashboard_data.js`.
-- **Adding a season of fire data:** update the CSV in `data/`, recompute the thresholds, and rebuild.
+- **Adding a season of fire data, or removing rows:** update the CSV in `data/`, then run `python scripts/compute_thresholds.py` and `python scripts/build_dashboard.py`.
 
 ## ArcGIS Online layer (optional)
 
