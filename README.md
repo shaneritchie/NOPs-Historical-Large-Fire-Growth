@@ -6,13 +6,31 @@ Weather on large fire growth days in North Ops (ONCC) Predictive Service Areas N
 
 `index.html` is a static web page (with its data in `dashboard_data.js`). Each time it opens, it pulls RAWS observations, FEMS daily forecasts and NFDRS fuel model Y indices straight from the public [FEMS](https://fems.fs2c.usda.gov/) climatology services. It needs no server, scheduler, API key or ArcGIS license.
 
-It shows:
+It has four tabs:
 
-- **Concern by PSA.** A map of the 9 PSAs colored by concern level for the selected day: today's observation or one of the next 6 forecast days.
-- **7-day outlook.** A grid of PSAs by day, with concern level and score. ▲ marks a large wind event.
-- **PSA detail.** Each variable's value against that PSA's threshold, plus other conditions.
-- **Where this day sits in history.** The selected day's values plotted against the typical ranges on large growth days and on other fire-days in that PSA.
-- **History for the PSA.** The large growth rate at each concern level, large growth days by month, and the biggest growth days.
+- **Outlook** (live):
+  - a map of the 9 PSAs colored by concern level for today's observation or any of the next 6 forecast days
+  - a 7-day outlook grid of concern level and score
+  - a **wind outlook** of each PSA's peak gust and direction against its large wind event threshold
+  - PSA detail, where the selected day sits in that PSA's history, and the PSA's large growth history
+- **Large growth days:** weather on large growth days compared with other fire-days for 16 variables, filterable by PSA, years, months and event type (wind events, lightning clusters, 50+ strikes in the prior 3 days, 3+ large fire starts). It includes:
+  - a table ranking which variables separate large growth days best
+  - peak gust direction roses for large growth days and other fire-days
+  - a sortable table of every large growth day and its weather
+- **Wind events** (days the PSA-average peak gust reached the PSA's 90th percentile threshold):
+  - the live wind outlook
+  - the large growth rate on wind event days compared with other days, by PSA
+  - gust direction roses, with offshore events showing up as north–east gusts
+  - wind event days by month
+  - a table of wind event days
+- **Lightning:**
+  - the large growth rate by the number of strikes in the prior 3 days
+  - large growth days after lightning, by year
+  - a table of large growth days that followed lightning
+
+  This is historical NLDN data; the dashboard doesn't include live lightning.
+
+The history tabs read `data/history_rows.json`, so they need the page to be opened from its web address, not as a local file.
 
 ### How the score works
 
@@ -40,7 +58,8 @@ Concern levels describe how similar conditions are to past large growth days. Th
 |---|---|
 | `index.html` | The dashboard page |
 | `dashboard_data.js` | Station lists, thresholds and historical statistics the page loads (generated) |
-| `scripts/build_dashboard.py` | Rebuilds `dashboard_data.js` from the historical CSV and the thresholds in the update script |
+| `data/history_rows.json` | One row per fire-day with the fields the history tabs use (generated) |
+| `scripts/build_dashboard.py` | Rebuilds `dashboard_data.js` and `data/history_rows.json` from the historical CSV and the thresholds in the update script |
 | `scripts/nops_psa_conditions_update.py` | Updates the ArcGIS Online layer "NOPs PSA Fire Weather Conditions" (NIFC org) with the same calculations. Holds the PSA station lists and thresholds. |
 | `data/NOPs_Large_Fire_Growth_Days_2012_2026_SIG_Weather.csv` | 4,950 large fire-days with PSA SIG weather, lightning and event flags |
 | `data/NOPs_2012_2020_FireFamilyPlus_SIG_Values_Archive.csv` | Original FireFamily+ values for 2012–2020, replaced in the main file by FEMS values |

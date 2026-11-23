@@ -67,6 +67,28 @@ select{font:inherit;padding:5px 8px;border-radius:6px;border:1px solid var(--bor
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 footer{grid-column:span 12;color:var(--muted);font-size:12px;padding:4px 2px}
 a{color:var(--accent)}
+
+nav.tabs{display:flex;gap:4px;padding:0 24px;background:var(--surface-1);border-bottom:1px solid var(--border);overflow-x:auto}
+nav.tabs a{padding:10px 14px;color:var(--text-secondary);text-decoration:none;border-bottom:2px solid transparent;white-space:nowrap;font-weight:500}
+nav.tabs a[aria-current="page"]{color:var(--text-primary);border-bottom-color:var(--text-primary)}
+.filters{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;padding:12px 24px;max-width:1500px;margin:0 auto;font-size:13px;color:var(--text-secondary)}
+.filters label{display:flex;align-items:center;gap:6px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.kpi{background:var(--surface-1);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.kpi .v{font-size:26px;font-weight:600;line-height:1.1}
+.kpi .l{color:var(--text-secondary);font-size:12.5px;margin-top:4px}
+th.sort{cursor:pointer;user-select:none;white-space:nowrap}
+th.sort:hover{color:var(--text-primary)}
+.pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:8px;font-size:12.5px;color:var(--text-secondary)}
+.pager button{padding:3px 10px}
+.flag{display:inline-block;font-size:11px;font-weight:600;padding:1px 6px;border-radius:4px;background:var(--grid);color:var(--text-primary);margin-right:3px;white-space:nowrap}
+.roses{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.roses figure{margin:0;text-align:center}
+.roses figcaption{font-size:12.5px;color:var(--text-secondary)}
+.callout{font-size:13px;color:var(--text-secondary);background:var(--page);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+.wcell{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-width:72px;height:28px;border-radius:5px;font-size:12px;font-variant-numeric:tabular-nums}
+.wcell.ev{background:var(--serious);color:#0b0b0b;font-weight:600}
+.hidden{display:none!important}
 </style>
 </head>
 <body>
@@ -79,7 +101,26 @@ a{color:var(--accent)}
   <button id="refresh" type="button">Refresh</button>
   <button id="theme" type="button" aria-label="Toggle dark mode">Dark</button>
 </header>
-<main>
+<nav class="tabs" id="tabs">
+  <a href="#outlook" data-tab="outlook">Outlook</a>
+  <a href="#growth" data-tab="growth">Large growth days</a>
+  <a href="#wind" data-tab="wind">Wind events</a>
+  <a href="#lightning" data-tab="lightning">Lightning</a>
+</nav>
+<div class="filters hidden" id="hfilters">
+  <label>PSA <select id="fPSA"></select></label>
+  <label>Years <select id="fY0"></select> to <select id="fY1"></select></label>
+  <label>Months <select id="fMon">
+    <option value="all">All months</option><option value="6-10">Jun–Oct</option><option value="7-9">Jul–Sep</option>
+    <option value="6">June</option><option value="7">July</option><option value="8">August</option><option value="9">September</option><option value="10">October</option>
+  </select></label>
+  <label id="fEvWrap">Days <select id="fEv">
+    <option value="all">All fire-days</option><option value="we">Large wind event days</option><option value="lc">Lightning cluster days</option>
+    <option value="l3">50+ strikes in prior 3 days</option><option value="ms">3+ large fire starts in PSA</option>
+  </select></label>
+  <span id="fCount"></span>
+</div>
+<main class="tab" id="tab-outlook">
   <section class="card span-12" id="statusCard" style="display:none"><div id="status" class="status"></div></section>
 
   <section class="card span-5">
@@ -127,11 +168,91 @@ a{color:var(--accent)}
     <table id="top"></table>
   </section>
 
-  <footer>
+  <section class="card span-12">
+    <h2>Wind outlook</h2>
+    <p class="note">PSA-average daily peak gust (mph) and its direction (the direction the wind blows from). Shaded cells reach the PSA's large wind event threshold, its 90th percentile of peak gust on 2012–2026 fire-days.</p>
+    <div style="overflow-x:auto"><table id="windOutlook"></table></div>
+  </section>
+
+</main>
+<main class="tab hidden" id="tab-growth">
+  <section class="span-12"><div class="kpis" id="gKpis"></div></section>
+  <section class="card span-7">
+    <h2>Weather on large growth days vs other fire-days</h2>
+    <p class="note">Box = middle half (25th–75th percentile), whiskers = 10th–90th, tick = median. Uses the PSA SIG values for each fire-day matching the filters above.</p>
+    <div id="gBoxes"></div>
+    <div class="legend"><span><i class="sw" style="background:var(--series-2)"></i>Large growth days</span><span><i class="sw" style="background:var(--series-1)"></i>Other fire-days</span></div>
+  </section>
+  <section class="card span-5">
+    <h2>Which variables separate large growth days</h2>
+    <p class="note">Separation = chance a random large growth day is more extreme (hotter, drier, windier, more lightning) than a random other fire-day. 50% = no difference.</p>
+    <table id="gSep"></table>
+    <h2 style="margin-top:18px">Peak gust direction</h2>
+    <p class="note">Share of days by the direction the day's strongest gusts came from.</p>
+    <div class="roses"><figure id="gRoseL"></figure><figure id="gRoseO"></figure></div>
+  </section>
+  <section class="card span-12">
+    <h2>Large growth days</h2>
+    <p class="note">Click a column to sort. ▲ = large wind event; ⚡ = 3+ strikes within 20 mi that day; ✸ = 3+ large fires started in the PSA that day.</p>
+    <div style="overflow-x:auto"><table id="gTable"></table></div>
+    <div class="pager" id="gPager"></div>
+  </section>
+</main>
+
+<main class="tab hidden" id="tab-wind">
+  <section class="card span-12">
+    <h2>Wind outlook (live)</h2>
+    <p class="note">PSA-average daily peak gust (mph) and direction from FEMS, today's observation and 6 forecast days. Shaded ▲ cells reach the PSA's large wind event threshold. Not affected by the filters.</p>
+    <div style="overflow-x:auto"><table id="windOutlook2"></table></div>
+  </section>
+  <section class="span-12"><div class="kpis" id="wKpis"></div></section>
+  <section class="card span-7">
+    <h2>Large growth rate on wind event days vs other days</h2>
+    <p class="note" id="wRateNote">Share of fire-days that were large growth days. A wind event day is one where the PSA-average peak gust reached the PSA's threshold.</p>
+    <div id="wRate"></div>
+    <div class="legend"><span><i class="sw" style="background:var(--series-2)"></i>Wind event days</span><span><i class="sw" style="background:var(--series-1)"></i>Other fire-days</span></div>
+  </section>
+  <section class="card span-5">
+    <h2>Gust direction on wind event days</h2>
+    <p class="note">Offshore (north–east) events stand out from the usual southwest flow.</p>
+    <div class="roses"><figure id="wRoseE"></figure><figure id="wRoseL"></figure></div>
+    <h2 style="margin-top:14px">Wind event days by month</h2>
+    <div id="wMonths"></div>
+  </section>
+  <section class="card span-12">
+    <h2>Wind event days</h2>
+    <p class="note">One row per PSA and day with a large wind event while large fires were burning. Click a column to sort.</p>
+    <div style="overflow-x:auto"><table id="wTable"></table></div>
+    <div class="pager" id="wPager"></div>
+  </section>
+</main>
+
+<main class="tab hidden" id="tab-lightning">
+  <section class="span-12"><div class="kpis" id="lKpis"></div></section>
+  <section class="card span-6">
+    <h2>Large growth rate by lightning in the prior 3 days</h2>
+    <p class="note">Cloud-to-ground strikes within 20 miles of the fire in the 3 days before the fire-day (NLDN).</p>
+    <div id="lRate"></div>
+  </section>
+  <section class="card span-6">
+    <h2>Large growth days after lightning, by year</h2>
+    <p class="note">Large growth days with any strikes within 20 miles in the prior 7 days, compared with those without.</p>
+    <div id="lYears"></div>
+    <div class="legend"><span><i class="sw" style="background:var(--series-2)"></i>Lightning in prior 7 days</span><span><i class="sw" style="background:var(--series-1)"></i>No lightning in prior 7 days</span></div>
+  </section>
+  <section class="card span-12">
+    <h2>Large growth days after lightning</h2>
+    <p class="note">Large growth days with strikes within 20 miles on the day or in the prior 7 days. Click a column to sort.</p>
+    <div style="overflow-x:auto"><table id="lTable"></table></div>
+    <div class="pager" id="lPager"></div>
+    <p class="callout" style="margin-top:12px">Lightning here is historical NLDN data (NOAA NCEI daily tile counts, available a few days after the fact). The live outlook doesn't include current lightning. That would need a real-time feed such as the ONCC lightning layers in ArcGIS Online.</p>
+  </section>
+</main>
+<footer style="max-width:1500px;margin:0 auto;padding:0 24px 32px;display:block">
     Data: RAWS observations, forecasts and NFDRS fuel model Y indices from the <a href="https://fems.fs2c.usda.gov/">FEMS</a> public climatology services, pulled live each time the page loads; PSA boundaries from the NIFC Predictive Service Area service. Historical statistics: 4,950 North Ops large fire-days, 2012–2026 (VIIRS perimeters), with PSA SIG weather from FEMS. Thresholds are the median value on each PSA's large growth days.
     Concern levels describe how similar conditions are to past large growth days; they are not a forecast of fire behavior.
   </footer>
-</main>
+
 <div class="tip" id="tip"></div>
 
 <script src="dashboard_data.js"></script>
@@ -249,7 +370,7 @@ const row = (p,d) => ROWS.find(r=>r.PSA===p && r.Day===d);
 const lvlLabel = c => c ? `<span class="lvl"><i class="sw" style="background:var(--${LVL[c]})"></i>${c}</span>` : `<span class="muted">No data</span>`;
 const dayName = d => { const r = ROWS.find(x=>x.Day===d); if(!r) return d===0?"Today":"+"+d; const dt=new Date(r.Date+"T12:00:00"); return (d===0?"Obs ":"")+dt.toLocaleDateString([], {weekday:"short", month:"numeric", day:"numeric"}); };
 
-function render(){ renderDays(); renderMap(); renderOutlook(); renderDetail(); renderDist(); renderHist(); }
+function render(){ renderDays(); renderMap(); renderOutlook(); renderWindOutlook(); renderDetail(); renderDist(); renderHist(); }
 
 function renderDays(){
   const days=DAYS;
@@ -351,8 +472,9 @@ function renderDist(){
   $("dist").querySelectorAll("[data-t]").forEach(el=>{el.onmousemove=e=>showTip(e,el.dataset.t);el.onmouseleave=hideTip;});
 }
 
+function niceMax(m){ if(!(m>0)) return 4; const raw=m/4, mag=10**Math.floor(Math.log10(raw)), f=raw/mag; const st=[1,1.5,2,2.5,3,4,5,6,8,10].find(x=>x>=f)*mag; return st*4; }
 function bars(el, labels, vals, opts){
-  const W=360,H=210,L=34,B=28,T=18,max=opts.max||Math.max(...vals.map(v=>v||0))*1.15||1;
+  const W=opts.W||360,H=opts.H||210,L=34,B=28,T=18,max=opts.max||niceMax(Math.max(...vals.map(v=>v||0))*1.08);
   const bw=(W-L-10)/labels.length;
   let svg=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${opts.aria}">`;
   const ticks=4; for(let i=0;i<=ticks;i++){const v=max*i/ticks,y=H-B-(H-B-T)*i/ticks; svg+=`<line x1="${L}" x2="${W-6}" y1="${y}" y2="${y}" stroke="${i?"var(--grid)":"var(--axis)"}"/><text x="${L-5}" y="${y+4}" text-anchor="end" style="font-size:10px">${Math.round(v)}${opts.unit||""}</text>`;}
@@ -382,6 +504,192 @@ function renderHist(){
     H.top.map(t=>`<tr><td>${t.date}</td><td>${t.fire}${sel.psa==="ALL"?` <span class="muted">${t.psa}</span>`:""}</td><td class="num">${t.acres.toLocaleString()}</td><td>${lvlLabel(t.L)} ${t.S}</td></tr>`).join("")+"</tbody>";
 }
 
+/* ================= history explorer tabs ================= */
+let H = null, HLOAD = null;
+const VLAB = {Temp:"Temp 1300 (°F)",MaxT:"Max temp (°F)",RH:"RH 1300 (%)",MxRH:"Max RH (%)",Wind:"Wind 1300 (mph)",GSpd:"Peak gust (mph)",VPDM:"VPD max (Pa)",VPDA:"VPD avg (Pa)",FFWI:"FFWI",ERC:"ERC",BI:"BI",IC:"IC",SC:"SC",F100:"100-hr FM (%)",F1000:"1000-hr FM (%)",L3:"Strikes, prior 3 days"};
+const VDIR = {RH:-1,MxRH:-1,F100:-1,F1000:-1};
+const COMPARE = ["Temp","MaxT","RH","MxRH","Wind","GSpd","VPDM","VPDA","FFWI","ERC","BI","IC","SC","F100","F1000","L3"];
+const COMP = ["N","NE","E","SE","S","SW","W","NW"];
+const compass = d => d==null ? "–" : COMP[Math.round(((d%360)+360)%360/45)%8];
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function loadHistory(){
+  if (HLOAD) return HLOAD;
+  HLOAD = fetch("data/history_rows.json").then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); }).then(j=>{
+    H = j.rows.map(a=>Object.fromEntries(j.fields.map((f,i)=>[f,a[i]])));
+    H.forEach(r=>{ r.year=+r.date.slice(0,4); r.month=+r.date.slice(5,7); });
+    const yrs=[...new Set(H.map(r=>r.year))].sort();
+    $("fPSA").innerHTML = `<option value="ALL">All North Ops</option>`+PSAS.map(p=>`<option value="${p}">${p} ${NAMES[p]||""}</option>`).join("");
+    $("fY0").innerHTML = yrs.map(y=>`<option${y===yrs[0]?" selected":""}>${y}</option>`).join("");
+    $("fY1").innerHTML = yrs.map(y=>`<option${y===yrs[yrs.length-1]?" selected":""}>${y}</option>`).join("");
+    ["fPSA","fY0","fY1","fMon","fEv"].forEach(id=>$(id).onchange=()=>{PG={g:0,w:0,l:0};renderTab();});
+  }).catch(e=>{ HLOAD=null; throw e; });
+  return HLOAD;
+}
+function filtered(useEv=true){
+  const p=$("fPSA").value, y0=+$("fY0").value, y1=+$("fY1").value, m=$("fMon").value, ev=$("fEv").value;
+  const [m0,m1] = m==="all" ? [1,12] : m.includes("-") ? m.split("-").map(Number) : [+m,+m];
+  return H.filter(r=>(p==="ALL"||r.psa===p) && r.year>=y0 && r.year<=y1 && r.month>=m0 && r.month<=m1 &&
+    (!useEv || ev==="all" || (ev==="we"&&r.WE) || (ev==="lc"&&r.LC) || (ev==="l3"&&r.L3>=50) || (ev==="ms"&&r.Starts>=3)));
+}
+const pct = (a,b) => b ? Math.round(a/b*100) : null;
+function quant(a,q){ if(!a.length) return null; const s=[...a].sort((x,y)=>x-y), i=(s.length-1)*q, lo=Math.floor(i); return s[lo]+(s[Math.ceil(i)]-s[lo])*(i-lo); }
+function auc(pos,neg){ if(!pos.length||!neg.length) return null; const all=pos.map(v=>[v,1]).concat(neg.map(v=>[v,0])).sort((a,b)=>a[0]-b[0]);
+  let rank=0, sum=0, i=0; while(i<all.length){ let j=i; while(j<all.length&&all[j][0]===all[i][0]) j++; const r=(i+j+1)/2; for(let k=i;k<j;k++) if(all[k][1]) sum+=r; i=j; }
+  return (sum-pos.length*(pos.length+1)/2)/(pos.length*neg.length); }
+const kpi = (v,l) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`;
+const vals = (rows,k) => rows.map(r=>r[k]).filter(v=>v!=null);
+
+function boxPairs(el, A, B, keys){
+  const W=620, rowH=36, L=140, R=16, H0=keys.length*rowH+8;
+  let svg=`<svg viewBox="0 0 ${W} ${H0}" width="100%" role="img" aria-label="Distributions on large growth days and other fire-days">`;
+  keys.forEach((k,i)=>{
+    const a=vals(A,k), b=vals(B,k); const y=4+i*rowH;
+    svg+=`<text x="0" y="${y+20}">${VLAB[k]}</text>`;
+    if(!a.length||!b.length){ svg+=`<text x="${L}" y="${y+20}" class="muted">not enough days</text>`; return; }
+    const qa=[.1,.25,.5,.75,.9].map(q=>quant(a,q)), qb=[.1,.25,.5,.75,.9].map(q=>quant(b,q));
+    let lo=Math.min(qa[0],qb[0]), hi=Math.max(qa[4],qb[4]); if(hi===lo){hi+=1;lo-=1;} const pad=(hi-lo)*.04; lo=Math.max(lo-pad, Math.min(...a,...b)>=0?0:-1e9); hi+=pad;
+    const X=v=>L+(v-lo)/(hi-lo)*(W-L-R);
+    svg+=`<line x1="${L}" x2="${W-R}" y1="${y+rowH-3}" y2="${y+rowH-3}" stroke="var(--grid)"/>`;
+    [[qa,"var(--series-2)",y+5,"Large growth days",a.length],[qb,"var(--series-1)",y+17,"Other fire-days",b.length]].forEach(([q,c,yy,nm,n])=>{
+      const t=`<b>${VLAB[k]}</b> · ${nm} (${n.toLocaleString()})<br>median ${fmt(q[2])} · middle half ${fmt(q[1])}–${fmt(q[3])} · 10th–90th ${fmt(q[0])}–${fmt(q[4])}`;
+      svg+=`<line x1="${X(q[0])}" x2="${X(q[4])}" y1="${yy+4}" y2="${yy+4}" stroke="${c}" stroke-width="2"/>`;
+      svg+=`<rect x="${X(q[1])}" y="${yy}" width="${Math.max(2,X(q[3])-X(q[1]))}" height="8" rx="3" fill="${c}"/>`;
+      svg+=`<rect x="${X(q[2])-1}" y="${yy-1}" width="2" height="10" fill="var(--text-primary)"/>`;
+      svg+=`<rect x="${L}" y="${yy-2}" width="${W-L-R}" height="12" fill="transparent" data-t="${t}"/>`;
+    });
+    svg+=`<text x="${L}" y="${y+rowH-6}" style="font-size:9.5px">${fmt(lo)}</text><text x="${W-R}" y="${y+rowH-6}" text-anchor="end" style="font-size:9.5px">${fmt(hi)}</text>`;
+  });
+  el.innerHTML=svg+"</svg>"; bindTips(el);
+}
+function bindTips(el){ el.querySelectorAll("[data-t]").forEach(n=>{n.onmousemove=e=>showTip(e,n.dataset.t);n.onmouseleave=hideTip;}); }
+
+function rose(el, dirs, title){
+  const n=dirs.length, S=220, c=S/2, R=c-24, cnt=Array(8).fill(0);
+  dirs.forEach(d=>cnt[Math.round(((d%360)+360)%360/45)%8]++);
+  const sh=cnt.map(x=>n?x/n:0), mx=Math.max(.25,...sh);
+  let svg=`<svg viewBox="0 0 ${S} ${S}" width="100%" style="max-width:240px" role="img" aria-label="${title}">`;
+  [.25,.5,.75,1].forEach(f=>svg+=`<circle cx="${c}" cy="${c}" r="${R*f}" fill="none" stroke="var(--grid)"/>`);
+  COMP.forEach((lab,i)=>{ const a=(i*45-90)*Math.PI/180; svg+=`<text x="${c+Math.cos(a)*(R+13)}" y="${c+Math.sin(a)*(R+13)+4}" text-anchor="middle" style="font-size:10.5px">${lab}</text>`; });
+  sh.forEach((v,i)=>{ if(!v) return; const r=R*v/mx, a0=(i*45-90-19)*Math.PI/180, a1=(i*45-90+19)*Math.PI/180;
+    svg+=`<path d="M${c} ${c} L${c+Math.cos(a0)*r} ${c+Math.sin(a0)*r} A${r} ${r} 0 0 1 ${c+Math.cos(a1)*r} ${c+Math.sin(a1)*r}Z" fill="${el.dataset.c||"var(--series-1)"}" stroke="var(--surface-1)" stroke-width="1.5" data-t="<b>${COMP[i]}</b>: ${Math.round(v*100)}% of ${n} days (${cnt[i]})"/>`; });
+  el.innerHTML=svg+`</svg><figcaption>${title} (${n.toLocaleString()} days)</figcaption>`; bindTips(el);
+}
+
+function groupBars(el, cats, A, B, nA, nB, aria){
+  const W=620,H0=380,L=34,Bt=28,T=18, max=100, gw=(W-L-10)/cats.length, bw=Math.min(26,gw*0.36);
+  let svg=`<svg viewBox="0 0 ${W} ${H0}" width="100%" role="img" aria-label="${aria}">`;
+  for(let i=0;i<=4;i++){ const y=H0-Bt-(H0-Bt-T)*i/4; svg+=`<line x1="${L}" x2="${W-6}" y1="${y}" y2="${y}" stroke="${i?"var(--grid)":"var(--axis)"}"/><text x="${L-5}" y="${y+4}" text-anchor="end" style="font-size:10px">${25*i}%</text>`; }
+  cats.forEach((cat,i)=>{ const x0=L+i*gw+gw/2;
+    [[A[i],nA[i],"var(--series-2)",-bw-1,"Wind event days"],[B[i],nB[i],"var(--series-1)",1,"Other fire-days"]].forEach(([v,n,c,dx,nm])=>{
+      if(v==null) return; const h=(H0-Bt-T)*v/max, x=x0+dx, y=H0-Bt-h;
+      svg+=`<path d="M${x} ${H0-Bt} V${y+Math.min(3,h)} Q${x} ${y} ${x+3} ${y} H${x+bw-3} Q${x+bw} ${y} ${x+bw} ${y+Math.min(3,h)} V${H0-Bt}Z" fill="${c}" data-t="<b>${cat}</b> · ${el.dataset[dx<0?"a":"b"]||nm}<br>${v}% of ${n} fire-days were large growth days"/>`;
+      svg+=`<text x="${x+bw/2}" y="${y-4}" text-anchor="middle" style="font-size:9.5px;fill:var(--text-primary)">${v}</text>`; });
+    svg+=`<text x="${x0}" y="${H0-Bt+15}" text-anchor="middle" style="font-size:10.5px">${cat}</text>`; });
+  el.innerHTML=svg+"</svg>"; bindTips(el);
+}
+
+let PG={g:0,w:0,l:0}, SORT={g:["acres",-1],w:["GSpd",-1],l:["L3",-1]};
+function table(key, el, pager, rows, cols){
+  const [sk,sd]=SORT[key]; rows=[...rows].sort((a,b)=>{const x=a[sk],y=b[sk]; if(x==null) return 1; if(y==null) return -1; return (x>y?1:x<y?-1:0)*sd;});
+  const per=25, pages=Math.max(1,Math.ceil(rows.length/per)); PG[key]=Math.min(PG[key],pages-1);
+  const page=rows.slice(PG[key]*per,(PG[key]+1)*per);
+  el.innerHTML=`<thead><tr>${cols.map(c=>`<th class="sort${c.num?" num":""}" data-k="${c.k}">${c.h}${c.k===sk?(sd>0?" ↑":" ↓"):""}</th>`).join("")}</tr></thead><tbody>`+
+    (page.length?page.map(r=>`<tr>${cols.map(c=>`<td${c.num?' class="num"':""}>${c.f?c.f(r):fmt(r[c.k])}</td>`).join("")}</tr>`).join(""):`<tr><td colspan="${cols.length}" class="muted">No days match these filters.</td></tr>`)+"</tbody>";
+  el.querySelectorAll("th.sort").forEach(th=>th.onclick=()=>{const k=th.dataset.k; SORT[key]=[k, SORT[key][0]===k?-SORT[key][1]:-1]; renderTab();});
+  pager.innerHTML=`${rows.length.toLocaleString()} rows · page ${PG[key]+1} of ${pages} <button type="button" ${PG[key]?"":"disabled"} data-d="-1">Previous</button><button type="button" ${PG[key]<pages-1?"":"disabled"} data-d="1">Next</button>`;
+  pager.querySelectorAll("button").forEach(b=>b.onclick=()=>{PG[key]+= +b.dataset.d; renderTab();});
+}
+const flags = r => `${r.WE?'<span class="flag" title="Large wind event">▲</span>':""}${r.LC?'<span class="flag" title="Lightning cluster">⚡</span>':""}${r.Starts>=3?'<span class="flag" title="3+ large fire starts">✸</span>':""}`;
+const scoreLvl = s => s==null?null:LEVELS.filter(([a])=>s>=a).pop()[1];
+const gust = r => r.GSpd==null?"–":`${fmt(r.GSpd)} ${compass(r.GDir)}`;
+
+function renderGrowth(){
+  const all=filtered(), A=all.filter(r=>r.lgd), B=all.filter(r=>!r.lgd);
+  $("fCount").textContent=`${all.length.toLocaleString()} fire-days match`;
+  const days=new Set(A.map(r=>r.psa+r.date)).size;
+  $("gKpis").innerHTML = kpi(A.length.toLocaleString(),`large growth fire-days (${days.toLocaleString()} PSA-days)`)+kpi(`${pct(A.length,all.length)??"–"}%`,`of ${all.length.toLocaleString()} fire-days were large growth days`)+
+    kpi(`${pct(A.filter(r=>r.WE).length,A.length)??"–"}%`,"of large growth days were wind event days")+kpi(`${pct(A.filter(r=>r.L3>0).length,A.length)??"–"}%`,"had lightning within 20 mi in the prior 3 days");
+  boxPairs($("gBoxes"), A, B, COMPARE);
+  const sep=COMPARE.map(k=>{const a=vals(A,k), b=vals(B,k), s=VDIR[k]||1; const u=auc(a.map(v=>v*s),b.map(v=>v*s)); return {k,u,ma:quant(a,.5),mb:quant(b,.5)};}).filter(x=>x.u!=null).sort((x,y)=>y.u-x.u);
+  $("gSep").innerHTML=`<thead><tr><th>Variable</th><th class="num">Large growth median</th><th class="num">Other median</th><th class="num">Separation</th></tr></thead><tbody>`+
+    sep.map(x=>`<tr><td>${VLAB[x.k]}</td><td class="num">${fmt(x.ma)}</td><td class="num">${fmt(x.mb)}</td><td class="num">${Math.round(x.u*100)}%</td></tr>`).join("")+"</tbody>";
+  $("gRoseL").dataset.c="var(--series-2)"; rose($("gRoseL"), vals(A,"GDir"), "Large growth days"); rose($("gRoseO"), vals(B,"GDir"), "Other fire-days");
+  table("g",$("gTable"),$("gPager"),A,[{k:"date",h:"Date",f:r=>r.date},{k:"fire",h:"Fire",f:r=>r.fire},{k:"psa",h:"PSA",f:r=>r.psa},{k:"acres",h:"Acres",num:1,f:r=>r.acres.toLocaleString()},{k:"growth",h:"Growth %",num:1},
+    {k:"Temp",h:"Temp",num:1},{k:"RH",h:"RH",num:1},{k:"MxRH",h:"Max RH",num:1},{k:"Wind",h:"Wind",num:1},{k:"GSpd",h:"Gust",num:1,f:gust},{k:"VPDA",h:"VPD avg",num:1},
+    {k:"ERC",h:"ERC",num:1},{k:"BI",h:"BI",num:1},{k:"FFWI",h:"FFWI",num:1},{k:"F100",h:"100-hr",num:1},{k:"L3",h:"Strikes 3 d",num:1},{k:"Score",h:"Level",f:r=>lvlLabel(scoreLvl(r.Score))+" "+r.Score},{k:"WE",h:"Flags",f:flags}]);
+}
+
+function psaDays(rows){ const m=new Map(); rows.forEach(r=>{const k=r.psa+"|"+r.date; if(!m.has(k)) m.set(k,{psa:r.psa,date:r.date,GSpd:r.GSpd,GDir:r.GDir,WT:r.WT,RH:r.RH,ERC:r.ERC,L3:r.L3,fires:0,lgd:0,acres:0,top:""});
+  const d=m.get(k); d.fires++; if(r.lgd) d.lgd++; if(r.acres>d.acres){d.acres=r.acres;d.top=r.fire;} }); return [...m.values()]; }
+
+function renderWind(){
+  const all=filtered(false); $("fCount").textContent=`${all.length.toLocaleString()} fire-days match`;
+  const E=all.filter(r=>r.WE), N=all.filter(r=>!r.WE), pd=psaDays(E);
+  $("wKpis").innerHTML=kpi(pd.length.toLocaleString(),"PSA-days with a large wind event while large fires burned")+kpi(`${pct(E.filter(r=>r.lgd).length,E.length)??"–"}%`,`of wind event fire-days were large growth days (${E.length.toLocaleString()} fire-days)`)+
+    kpi(`${pct(N.filter(r=>r.lgd).length,N.length)??"–"}%`,"of other fire-days were large growth days")+kpi(`${pct(E.filter(r=>r.GDir!=null&&(r.GDir>=337.5||r.GDir<112.5)).length,E.filter(r=>r.GDir!=null).length)??"–"}%`,"of wind event fire-days had N–E gusts (offshore)");
+  const cats=$("fPSA").value==="ALL"?PSAS:[$("fPSA").value], src=all;
+  const by=p=>src.filter(r=>p==="ALL"||r.psa===p);
+  const A=cats.map(p=>{const e=by(p).filter(r=>r.WE);return e.length>=5?pct(e.filter(r=>r.lgd).length,e.length):null;}), nA=cats.map(p=>by(p).filter(r=>r.WE).length);
+  const B=cats.map(p=>{const e=by(p).filter(r=>!r.WE);return e.length>=5?pct(e.filter(r=>r.lgd).length,e.length):null;}), nB=cats.map(p=>by(p).filter(r=>!r.WE).length);
+  $("wRate").dataset.a="Wind event days"; groupBars($("wRate"), cats, A, B, nA, nB, "Large growth rate on wind event days vs other days by PSA");
+  $("wRateNote").textContent=`Share of fire-days that were large growth days (groups with fewer than 5 days are left blank). Thresholds: ${PSAS.map(p=>`${p} ${CFG.TH[p]._wind_event[1]}`).join(", ")} mph.`;
+  $("wRoseE").dataset.c="var(--serious)"; rose($("wRoseE"), pd.map(d=>d.GDir).filter(v=>v!=null), "All wind event days");
+  $("wRoseL").dataset.c="var(--series-2)"; rose($("wRoseL"), psaDays(E.filter(r=>r.lgd)).map(d=>d.GDir).filter(v=>v!=null), "Wind event days with large growth");
+  const mc=Array(12).fill(0); pd.forEach(d=>mc[+d.date.slice(5,7)-1]++);
+  bars($("wMonths"), MONTHS.map(m=>m[0]), mc, {W:480,H:190,aria:"Wind event days by month", tip:i=>`<b>${MONTHS[i]}</b><br>${mc[i]} wind event PSA-days`});
+  table("w",$("wTable"),$("wPager"),pd,[{k:"date",h:"Date",f:r=>r.date},{k:"psa",h:"PSA",f:r=>r.psa},{k:"GSpd",h:"Peak gust",num:1},{k:"GDir",h:"From",f:r=>`${compass(r.GDir)} ${r.GDir??""}°`},{k:"WT",h:"Threshold",num:1},
+    {k:"RH",h:"RH",num:1},{k:"ERC",h:"ERC",num:1},{k:"fires",h:"Fires burning",num:1},{k:"lgd",h:"Large growth",num:1},{k:"acres",h:"Biggest growth (ac)",num:1,f:r=>r.acres.toLocaleString()},{k:"top",h:"On fire",f:r=>r.top}]);
+}
+
+function renderLightning(){
+  const all=filtered(false); $("fCount").textContent=`${all.length.toLocaleString()} fire-days match`;
+  const bins=[["0",0,0],["1–9",1,9],["10–49",10,49],["50–199",50,199],["200+",200,1e9]];
+  const rate=bins.map(([l,a,b])=>{const g=all.filter(r=>r.L3!=null&&r.L3>=a&&r.L3<=b);return [pct(g.filter(r=>r.lgd).length,g.length),g.length];});
+  const A=all.filter(r=>r.lgd), withL=A.filter(r=>r.L7>0||r.L0>0);
+  const g50=all.filter(r=>r.L3>=50), g0=all.filter(r=>r.L3===0);
+  $("lKpis").innerHTML=kpi(`${pct(g50.filter(r=>r.lgd).length,g50.length)??"–"}%`,`of fire-days after 50+ strikes in 3 days were large growth days (${g50.length})`)+
+    kpi(`${pct(g0.filter(r=>r.lgd).length,g0.length)??"–"}%`,"with no strikes in the prior 3 days")+kpi(`${pct(withL.length,A.length)??"–"}%`,`of ${A.length.toLocaleString()} large growth days had lightning in the prior week`)+
+    kpi(psaDays(all.filter(r=>r.LC)).length.toLocaleString(),"PSA-days with a lightning cluster (3+ strikes) near a fire");
+  bars($("lRate"), bins.map(b=>b[0]), rate.map(r=>r[0]), {W:620,H:240,max:100,unit:"%",aria:"Large growth rate by prior 3-day strikes",label:v=>v+"%",tip:i=>`<b>${bins[i][0]} strikes</b><br>${rate[i][0]??"–"}% of ${rate[i][1]} fire-days were large growth days`});
+  const yrs=[...new Set(all.map(r=>r.year))].sort(), ya=yrs.map(y=>withL.filter(r=>r.year===y).length), yb=yrs.map(y=>A.filter(r=>r.year===y).length-withL.filter(r=>r.year===y).length);
+  stackBars($("lYears"), yrs.map(y=>String(y).slice(2)), ya, yb, yrs);
+  table("l",$("lTable"),$("lPager"),withL,[{k:"date",h:"Date",f:r=>r.date},{k:"fire",h:"Fire",f:r=>r.fire},{k:"psa",h:"PSA",f:r=>r.psa},{k:"acres",h:"Acres",num:1,f:r=>r.acres.toLocaleString()},
+    {k:"L0",h:"Strikes that day",num:1},{k:"L3",h:"Prior 3 days",num:1},{k:"L7",h:"Prior 7 days",num:1},{k:"RH",h:"RH",num:1},{k:"GSpd",h:"Gust",num:1,f:gust},{k:"ERC",h:"ERC",num:1},{k:"Starts",h:"Large starts in PSA",num:1},{k:"WE",h:"Flags",f:flags}]);
+}
+function stackBars(el, labels, a, b, full){
+  const W=620,H0=230,L=34,Bt=28,T=14, max=niceMax(Math.max(1,...a.map((v,i)=>v+b[i]))*1.05), bw=(W-L-10)/labels.length;
+  let svg=`<svg viewBox="0 0 ${W} ${H0}" width="100%" role="img" aria-label="Large growth days by year with and without prior lightning">`;
+  for(let i=0;i<=4;i++){const v=max*i/4,y=H0-Bt-(H0-Bt-T)*i/4; svg+=`<line x1="${L}" x2="${W-6}" y1="${y}" y2="${y}" stroke="${i?"var(--grid)":"var(--axis)"}"/><text x="${L-5}" y="${y+4}" text-anchor="end" style="font-size:10px">${Math.round(v)}</text>`;}
+  labels.forEach((l,i)=>{ const x=L+i*bw+bw*.18, w=bw*.64, s=(H0-Bt-T)/max, h1=a[i]*s, h2=b[i]*s, y1=H0-Bt-h1, y2=y1-h2-(h2&&h1?2:0);
+    const t=`<b>${full[i]}</b><br>${a[i]} large growth days after lightning<br>${b[i]} without`;
+    if(h1) svg+=`<rect x="${x}" y="${y1}" width="${w}" height="${h1}" fill="var(--series-2)" data-t="${t}"/>`;
+    if(h2) svg+=`<path d="M${x} ${y2+h2} V${y2+Math.min(3,h2)} Q${x} ${y2} ${x+3} ${y2} H${x+w-3} Q${x+w} ${y2} ${x+w} ${y2+Math.min(3,h2)} V${y2+h2}Z" fill="var(--series-1)" data-t="${t}"/>`;
+    svg+=`<rect x="${L+i*bw}" y="${T}" width="${bw}" height="${H0-Bt-T}" fill="transparent" data-t="${t}"/><text x="${x+w/2}" y="${H0-Bt+15}" text-anchor="middle" style="font-size:10px">'${l}</text>`; });
+  el.innerHTML=svg+"</svg>"; bindTips(el);
+}
+
+function renderWindOutlook(){
+  const days=DAYS; let h=`<thead><tr><th>PSA</th><th class="num">Threshold</th>${days.map(d=>`<th>${dayName(d)}</th>`).join("")}</tr></thead><tbody>`;
+  for(const p of PSAS){ const th=CFG.TH[p]._wind_event[1];
+    h+=`<tr><td><b>${p}</b></td><td class="num">${th}</td>`+days.map(d=>{const r=row(p,d); if(!r||r.GSpd==null) return `<td><span class="wcell muted">–</span></td>`;
+      const ev=r.GSpd>=th; return `<td><span class="wcell${ev?" ev":""}" title="${p} ${r.Date}: peak gust ${fmt(r.GSpd)} mph from ${compass(r.GDir)}${ev?" (large wind event)":""}">${ev?"▲ ":""}${fmt(r.GSpd)} ${compass(r.GDir)}</span></td>`;}).join("")+"</tr>"; }
+  $("windOutlook").innerHTML=h+"</tbody>"; $("windOutlook2").innerHTML=h+"</tbody>";
+}
+
+function currentTab(){ const t=(location.hash||"#outlook").slice(1); return ["outlook","growth","wind","lightning"].includes(t)?t:"outlook"; }
+async function renderTab(){
+  const t=currentTab();
+  document.querySelectorAll("main.tab").forEach(m=>m.classList.toggle("hidden", m.id!=="tab-"+t));
+  document.querySelectorAll("#tabs a").forEach(a=>a.setAttribute("aria-current", a.dataset.tab===t?"page":"false"));
+  $("hfilters").classList.toggle("hidden", t==="outlook"); $("fEvWrap").classList.toggle("hidden", t!=="growth");
+  if(t==="outlook") return;
+  if(!H){ $("fCount").textContent="Loading 2012–2026 history…"; try{ await loadHistory(); }catch(e){ $("fCount").textContent="Could not load data/history_rows.json (open the dashboard from its web address, not as a local file)."; return; } }
+  ({growth:renderGrowth, wind:renderWind, lightning:renderLightning})[t]();
+}
+addEventListener("hashchange", renderTab);
+
+renderTab();
 loadAll();
 </script>
 </body>
