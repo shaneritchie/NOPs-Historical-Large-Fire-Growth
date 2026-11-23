@@ -125,7 +125,7 @@ th.sort:hover{color:var(--text-primary)}
 
   <section class="card span-5">
     <h2>Concern by PSA</h2>
-    <p class="note">Score = how many of 8 large-growth thresholds the PSA meets (forecast days use 6, scaled to 8). ⊘ = fuels not receptive, capped at Low. Click a PSA for details.</p>
+    <p class="note">Score = how many of 8 large-growth thresholds the PSA meets. ⊘ = fuels not receptive, capped at Low. Click a PSA for details.</p>
     <div class="days" id="days" role="group" aria-label="Day"></div>
     <div id="map"></div>
     <div class="legend" id="legend"></div>
@@ -133,7 +133,7 @@ th.sort:hover{color:var(--text-primary)}
 
   <section class="card span-7">
     <h2>7-day outlook</h2>
-    <p class="note">Today's 1300 LST observation, then FEMS daily forecasts. Cell shows concern level and score (0–8). ▲ = large wind event (peak gust at or above the PSA's 90th percentile). ⊘ = fuels not receptive (ERC or 100-hr fuel moisture wetter than 95% of the PSA's large growth days), so the level is capped at Low whatever the score.</p>
+    <p class="note">The latest 1300 LST observation, then FEMS hourly forecasts read at 1300 and over each day the same way, so every column is scored alike. Cell shows concern level and score (0–8). ▲ = large wind event (peak gust at or above the PSA's 90th percentile). ⊘ = fuels not receptive (ERC or 100-hr fuel moisture wetter than 95% of the PSA's large growth days), so the level is capped at Low whatever the score.</p>
     <div style="overflow-x:auto"><table class="outlook" id="outlook"></table></div>
   </section>
 
@@ -312,37 +312,52 @@ async function getCSV(path){
 }
 const dstr = ms => new Date(ms).toISOString().slice(0,10);
 
+/* Every day (observed or forecast) is built the same way as the 2012-2026 history:
+   1300 LST (21Z) values for temp/RH/wind/indices, daily max/avg over the LST day (08Z-08Z),
+   rain over the 24 h ending at 1300. Hourly observations are used wherever they exist;
+   FEMS hourly forecasts fill the hours after the latest observation. */
+const VAR_KEYS = ["Temp","MaxT","RH","MxRH","Rain","Wind","GSpd","VPDM","VPDA","FFWI","SC","ERC","BI","IC","F100","F1000"];
 async function loadPSA(psa, obs, base){
-  const ids = CFG.ST[psa].join(","), d = k => dstr(Date.parse(base+"T00:00:00Z")+k*864e5);
-  const [WX,NF,FW,FN] = await Promise.all([
-    getCSV(`download-weather?stationIds=${ids}&startDate=${z(new Date(obs-23*3600e3))}&endDate=${z(new Date(obs+10*3600e3))}&dataset=observation&dataFormat=csv&dataIncrement=hourly`),
-    getCSV(`download-nfdr?stationIds=${ids}&startDate=${z(new Date(obs-3600e3))}&endDate=${z(new Date(obs+3600e3))}&dataset=observation&dataFormat=csv&fuelModels=Y&dateTimeFormat=UTC`),
-    getCSV(`download-wx-daily-summary/?dataset=forecast&startDate=${d(1)}&endDate=${d(6)}&dataFormat=csv&stationIds=${ids}`),
-    getCSV(`download-nfdr-daily-summary/?dataset=forecast&startDate=${d(1)}&endDate=${d(6)}&dataFormat=csv&stationIds=${ids}&fuelModels=Y`)]);
-  const t = s => Date.parse(s), per = [];
-  for (const s of CFG.ST[psa].map(Number)){
-    const w = WX.filter(r=>r.StationId===s); if(!w.length || w.every(r=>r["Temperature(F)"]==null)) continue;
-    const o = w.find(r=>t(r.DateTime)===obs)||{};
-    const day = w.filter(r=>t(r.DateTime)>=obs-13*3600e3 && t(r.DateTime)<obs+11*3600e3);
-    const rain = w.filter(r=>t(r.DateTime)>obs-24*3600e3 && t(r.DateTime)<=obs).map(r=>r["Precipitation(in)"]).filter(x=>x!=null);
-    const n = NF.filter(r=>r.stationId===s && t(r.observationTime)===obs);
-    const gs = day.filter(r=>r["GustSpeed(mph)"]!=null), g = gs.length ? gs.reduce((a,b)=>b["GustSpeed(mph)"]>a["GustSpeed(mph)"]?b:a) : null;
-    const T=o["Temperature(F)"]??null, H=o["RelativeHumidity(%)"]??null, U=o["WindSpeed(mph)"]??null;
-    per.push({Temp:T,MaxT:mx(day.map(r=>r["Temperature(F)"])),RH:H,MxRH:mx(day.map(r=>r["RelativeHumidity(%)"])),
-      Rain:rain.length?rain.reduce((a,b)=>a+b,0):null,Wind:U,WDIR:U>0?o["WindAzimuth(degrees)"]:null,
-      GSpd:g?g["GustSpeed(mph)"]:null,GDir:g?g["GustAzimuth(degrees)"]:null,VPDM:mx(day.map(r=>r["VPD(Pa)"])),VPDA:mean(day.map(r=>r["VPD(Pa)"])),FFWI:ffwi(T,H,U),
-      SC:mean(n.map(r=>r.spreadComponent)),ERC:mean(n.map(r=>r.energyReleaseComponent)),BI:mean(n.map(r=>r.burningIndex)),IC:mean(n.map(r=>r.ignitionComponent)),F100:mean(n.map(r=>r.hundredHR_TL_FuelMoisture)),F1000:mean(n.map(r=>r.thousandHR_TL_FuelMoisture))});
-  }
+  const ids = CFG.ST[psa].join(","), H1 = 3600e3, now = Date.now(), last = obs + 6*864e5;
+  const hr = ms => Math.floor(ms/H1)*H1;   // FEMS hours are on the hour
+  const obsEnd = new Date(hr(Math.min(now, last + 11*H1))), fcStart = new Date(hr(Math.max(obs - 24*H1, now - 2*H1)));
+  const [WXo,NFo,WXf,NFf] = await Promise.all([
+    getCSV(`download-weather?stationIds=${ids}&startDate=${z(new Date(obs-24*H1))}&endDate=${z(obsEnd)}&dataset=observation&dataFormat=csv&dataIncrement=hourly`),
+    getCSV(`download-nfdr?stationIds=${ids}&startDate=${z(new Date(obs-H1))}&endDate=${z(new Date(hr(Math.min(now, last+H1))))}&dataset=observation&dataFormat=csv&fuelModels=Y&dateTimeFormat=UTC`),
+    getCSV(`download-weather?stationIds=${ids}&startDate=${z(fcStart)}&endDate=${z(new Date(last+11*H1))}&dataset=forecast&dataFormat=csv&dataIncrement=hourly`),
+    getCSV(`download-nfdr?stationIds=${ids}&startDate=${z(fcStart)}&endDate=${z(new Date(last+H1))}&dataset=forecast&dataFormat=csv&fuelModels=Y&dateTimeFormat=UTC`)]);
+  const t = s => Date.parse(s);
+  // per-station hourly series: observation where it has data, otherwise forecast
+  const wx = {}, nf = {};
+  for (const r of WXf) (wx[r.StationId] ??= new Map()).set(t(r.DateTime), {...r, fc:true});
+  for (const r of WXo) if (r["Temperature(F)"]!=null || r["RelativeHumidity(%)"]!=null) (wx[r.StationId] ??= new Map()).set(t(r.DateTime), {...r, fc:false});
+  for (const r of NFf) (nf[r.stationId] ??= new Map()).set(t(r.observationTime), {...r, fc:true});
+  for (const r of NFo) if (r.energyReleaseComponent!=null) (nf[r.stationId] ??= new Map()).set(t(r.observationTime), {...r, fc:false});
   const rows = [];
-  const ob = {PSA:psa, Date:base, Day:0, Type:"Observed", Stations:per.length};
-  for (const k of ["Temp","MaxT","RH","MxRH","Rain","Wind","GSpd","VPDM","VPDA","FFWI","SC","ERC","BI","IC","F100","F1000"]) ob[k]=mean(per.map(x=>x[k]));
-  ob.WDIR=cmean(per.map(x=>x.WDIR)); ob.GDir=cmean(per.map(x=>x.GDir)); rows.push(ob);
-  for (const dd of [...new Set([...FW.map(r=>r.Date),...FN.map(r=>r.ObservationTime)])].sort()){
-    const wd=FW.filter(r=>r.Date===dd), nd=FN.filter(r=>r.ObservationTime===dd);
-    rows.push({PSA:psa,Date:dd,Day:Math.round((Date.parse(dd)-Date.parse(base))/864e5),Type:"Forecast",Stations:wd.length,
-      MaxT:mean(wd.map(r=>r["TemperatureMax(F)"])),RH:mean(wd.map(r=>r["RelativeHumidityMin(%)"])),MxRH:mean(wd.map(r=>r["RelativeHumidityMax(%)"])),
-      Rain:mean(wd.map(r=>r["Precipitation24hr(in)"])),Wind:mean(wd.map(r=>r["WindSpeedMax(mph)"])),GSpd:mean(wd.map(r=>r["GustSpeedMax(mph)"])),GDir:cmean(wd.map(r=>r["GustDirection(degrees)"])),
-      VPDM:mean(wd.map(r=>r["VPDMax(Pa)"])),SC:mean(nd.map(r=>r.SC)),ERC:mean(nd.map(r=>r.ERC)),BI:mean(nd.map(r=>r.BI)),IC:mean(nd.map(r=>r.IC)),F100:mean(nd.map(r=>r["100HrFM"])),F1000:mean(nd.map(r=>r["1000HrFM"]))});
+  for (let k=0; k<=6; k++){
+    const t21 = obs + k*864e5, per = []; let obsAt1300 = 0, fcHours = 0;
+    for (const s of CFG.ST[psa].map(Number)){
+      const W = wx[s], N = nf[s]; if (!W) continue;
+      const o = W.get(t21); if (!o || o["Temperature(F)"]==null) continue;
+      const day = [], rain = [];
+      for (let h=t21-13*H1; h<t21+11*H1; h+=H1){ const r=W.get(h); if(r){ day.push(r); if(r.fc && h>t21) fcHours++; } }
+      for (let h=t21-23*H1; h<=t21; h+=H1){ const r=W.get(h); if(r && r["Precipitation(in)"]!=null) rain.push(r["Precipitation(in)"]); }
+      const n = N ? N.get(t21) : null;
+      if (!o.fc) obsAt1300++;
+      const gs = day.filter(r=>r["GustSpeed(mph)"]!=null), g = gs.length ? gs.reduce((a,b)=>b["GustSpeed(mph)"]>a["GustSpeed(mph)"]?b:a) : null;
+      const T=o["Temperature(F)"]??null, Hm=o["RelativeHumidity(%)"]??null, U=o["WindSpeed(mph)"]??null;
+      per.push({Temp:T,MaxT:mx(day.map(r=>r["Temperature(F)"])),RH:Hm,MxRH:mx(day.map(r=>r["RelativeHumidity(%)"])),
+        Rain:rain.length?rain.reduce((a,b)=>a+b,0):null,Wind:U,WDIR:U>0?o["WindAzimuth(degrees)"]:null,
+        GSpd:g?g["GustSpeed(mph)"]:null,GDir:g?g["GustAzimuth(degrees)"]:null,VPDM:mx(day.map(r=>r["VPD(Pa)"])),VPDA:mean(day.map(r=>r["VPD(Pa)"])),FFWI:ffwi(T,Hm,U),
+        SC:n?n.spreadComponent:null,ERC:n?n.energyReleaseComponent:null,BI:n?n.burningIndex:null,IC:n?n.ignitionComponent:null,F100:n?n.hundredHR_TL_FuelMoisture:null,F1000:n?n.thousandHR_TL_FuelMoisture:null});
+    }
+    if (!per.length) continue;
+    const observed = obsAt1300 >= per.length/2;
+    const r = {PSA:psa, Date:dstr(t21-8*H1), Day:k, Type:observed?"Observed":"Forecast", Stations:per.length,
+               Partial: observed && fcHours>0};
+    for (const key of VAR_KEYS) r[key]=mean(per.map(x=>x[key]));
+    r.WDIR=cmean(per.map(x=>x.WDIR)); r.GDir=cmean(per.map(x=>x.GDir));
+    rows.push(r);
   }
   return rows.map(score);
 }
@@ -392,6 +407,14 @@ const MET_NAMES = {ERC:"energy release component (ERC)", BI:"burning index (BI)"
   FFWI:"Fosberg fire weather index (FFWI)", GSpd:"peak gust", VPDA:"average vapor pressure deficit (VPD)", MxRH:"max RH", F100:"100-hr fuel moisture"};
 const metNames = m => m.map(v=>MET_NAMES[v]||v).join(", ");
 const MIN_N = 10;
+/* PSAs where the concern level has historically made little difference to the odds
+   (large growth rate at Very High < 10 points above Low). */
+function skillNote(psa){
+  const H=HIST[psa]; if(!H) return "";
+  const lo=H.levels[0], vh=H.levels[3]; if(lo.rate==null||vh.rate==null) return "";
+  if (vh.rate - lo.rate >= 10) return "";
+  return `In ${psa} the concern level hasn't historically changed the odds much: ${Math.round(lo.rate)}% of fire-days at Low were large growth days, ${Math.round(vh.rate)}% at Very High (2012–2026). Weigh lightning and new large fire starts more here.`;
+}
 /* Where today's ERC / 100-hr sits among the PSA's past large growth days, as counts. */
 function fuelCompare(psa, v, x){
   const a = (typeof LGDF!=="undefined" && LGDF[psa]) ? LGDF[psa][v] : null;
@@ -456,7 +479,7 @@ function renderMap(){
   }
   $("map").innerHTML=svg+"</svg>";
   $("map").querySelectorAll("path[data-p]").forEach(el=>{
-    el.onmousemove=e=>{const p=el.dataset.p,r=row(p,sel.day); showTip(e, `<b>${p} – ${NAMES[p]||""}</b><br>${r?lvlLabel(r.Concern)+` · score ${r.Score}/8`+(r.Gate?"<br>⊘ Capped at Low: fuels not receptive":"")+(fuelLines(p,r)?"<br>"+fuelLines(p,r):""):"No data"}${r&&r.Met.length?`<br>Over threshold: ${metNames(r.Met)}`:""}${r&&r.Concern?`<br><span style="color:var(--text-secondary)">${rateText(p,r)}</span>`:""}`);};
+    el.onmousemove=e=>{const p=el.dataset.p,r=row(p,sel.day); showTip(e, `<b>${p} – ${NAMES[p]||""}</b><br>${r?lvlLabel(r.Concern)+` · score ${r.Score}/8`+(r.Gate?"<br>⊘ Capped at Low: fuels not receptive":"")+(fuelLines(p,r)?"<br>"+fuelLines(p,r):""):"No data"}${r&&r.Met.length?`<br>Over threshold: ${metNames(r.Met)}`:""}${r&&r.Concern?`<br><span style="color:var(--text-secondary)">${rateText(p,r)}</span>`:""}${skillNote(p)?`<br>⚠ Concern level has little track record in ${p}; see details`:""}`);};
     el.onmouseleave=hideTip; el.onclick=()=>{sel.psa=el.dataset.p;render();};
   });
 }
@@ -477,7 +500,7 @@ function renderOutlook(){
   $("outlook").innerHTML=h+"</tbody>";
   $("outlook").querySelectorAll(".chip").forEach(c=>{
     c.onclick=()=>{sel.psa=c.dataset.p;sel.day=+c.dataset.d;render();};
-    c.onmousemove=e=>{const r=row(c.dataset.p,+c.dataset.d); if(!r) return; showTip(e,`<b>${r.PSA} · ${r.Date}</b> (${r.Type.toLowerCase()})<br>${lvlLabel(r.Concern)} · ${r.Met.length} of ${r.Possible} thresholds${r.Met.length?": "+metNames(r.Met):""}${r.Gate?"<br>⊘ Capped at Low: fuels not receptive":""}${fuelLines(r.PSA,r)?"<br>"+fuelLines(r.PSA,r):""}<br>Peak gust ${fmt(r.GSpd)} mph · ERC ${fmt(r.ERC)} · ${r.Type==="Observed"?"RH at 1300":"min RH"} ${fmt(r.RH)}%${r.WindEvent?"<br>▲ Large wind event":""}`);};
+    c.onmousemove=e=>{const r=row(c.dataset.p,+c.dataset.d); if(!r) return; showTip(e,`<b>${r.PSA} · ${r.Date}</b> (${r.Type.toLowerCase()})<br>${lvlLabel(r.Concern)} · ${r.Met.length} of ${r.Possible} thresholds${r.Met.length?": "+metNames(r.Met):""}${r.Gate?"<br>⊘ Capped at Low: fuels not receptive":""}${fuelLines(r.PSA,r)?"<br>"+fuelLines(r.PSA,r):""}<br>Peak gust ${fmt(r.GSpd)} mph · ERC ${fmt(r.ERC)} · RH at 1300 ${fmt(r.RH)}%${r.WindEvent?"<br>▲ Large wind event":""}`);};
     c.onmouseleave=hideTip;
   });
 }
@@ -486,7 +509,7 @@ function renderDetail(){
   const r=row(sel.psa,sel.day), th=CFG.TH[sel.psa];
   $("detailTitle").textContent=`${sel.psa} ${NAMES[sel.psa]||""} · ${r?r.Date:""}`;
   if(!r){ $("detail").innerHTML=""; $("detailNote").textContent="No data for this PSA and day."; return; }
-  $("detailNote").innerHTML=`${r.Type==="Observed"?`1300 LST observation, average of ${r.Stations} RAWS`:`FEMS forecast, average of ${r.Stations} RAWS (daily max/min values)`} · ${lvlLabel(r.Concern)} · score ${r.Score}/8${r.Gate?" · <b>⊘ capped at Low: fuels not receptive</b>":""}.<br>${rateText(sel.psa,r)}`;
+  $("detailNote").innerHTML=`${r.Type==="Observed"?`1300 LST observation, average of ${r.Stations} RAWS${r.Partial?" (the day isn't over: max gust, max RH and average VPD include forecast hours for the rest of the day)":""}`:`FEMS hourly forecast at 1300 LST, average of ${r.Stations} RAWS`} · ${lvlLabel(r.Concern)} · score ${r.Score}/8${r.Gate?" · <b>⊘ capped at Low: fuels not receptive</b>":""}.<br>${rateText(sel.psa,r)}${skillNote(sel.psa)?`<br><b>⚠ ${skillNote(sel.psa)}</b>`:""}`;
   let h=`<thead><tr><th>Variable</th><th class="num">Value</th><th class="num">Threshold</th><th>Met</th></tr></thead><tbody>`;
   for (const [v,lab,op] of VARS){
     const x=r[v], t=th[v][1], has=x!=null&&!isNaN(x), met=r.Met.includes(v);
@@ -572,7 +595,7 @@ function levelStack(el, H){
 function renderHist(){
   const H=HIST[sel.psa];
   $("rateTitle").textContent=`${sel.psa}: fire-days by concern level`;
-  $("rateNote").textContent=`Days when a large fire was already burning in ${sel.psa}, 2012–2026, at each concern level. The orange part became large growth days; the % is that share (${sel.psa} average ${Math.round(H.base)}%). * = fewer than ${MIN_N} days, too few for a reliable rate.`;
+  $("rateNote").textContent=`Days when a large fire was already burning in ${sel.psa}, 2012–2026, at each concern level. The orange part became large growth days; the % is that share (${sel.psa} average ${Math.round(H.base)}%). * = fewer than ${MIN_N} days, too few for a reliable rate.${skillNote(sel.psa)?" ⚠ The share barely changes with level here, so the level is a weak guide in "+sel.psa+".":""}`;
   levelStack($("rate"), H);
   $("monthTitle").textContent=`${sel.psa}: large growth days by month`;
   $("monthNote").textContent=`${H.nlgd.toLocaleString()} large growth days, 2012–2026.`;

@@ -41,7 +41,15 @@ Each PSA has a threshold for 8 variables: ERC, BI, IC, FFWI, peak gust, average 
 - High: 4–5
 - Very High: 6–8
 
-Forecast days don't include FFWI or average VPD, so their score is scaled to 8 from the 6 variables available.
+**How each day is built.** Every column, observed or forecast, is built the same way as the history the thresholds come from:
+
+- values at 1300 LST for temperature, RH, wind and the fire danger indices
+- daily max and average over the LST day for max temperature, max RH, peak gust and VPD
+- rain over the 24 hours to 1300
+
+The page uses FEMS hourly observations where they exist, and FEMS hourly forecasts for the hours after them. Between 1 PM Pacific and midnight, the observed column's daily values include forecast hours for the rest of the day, and the PSA detail panel says so.
+
+**Where the level is a weak guide.** In PSAs where the large growth rate at Very High is less than 10 points above Low (currently NC06, NC07 and NC08), the PSA detail panel and map pop-up add a ⚠ note. In those PSAs lightning and new large fire starts have mattered more than the weather score.
 
 **Fuel gate.** A day can't score above Low if either of these is true:
 
@@ -84,14 +92,11 @@ Concern levels describe how similar conditions are to past large growth days. Th
 - **Changing stations or thresholds:** edit `PSA_STATIONS`, `THRESHOLDS` and `HIST_LGD_RATE` in `scripts/nops_psa_conditions_update.py`, then run `python scripts/build_dashboard.py` (needs `pandas`) to regenerate `dashboard_data.js`.
 - **Adding a season of fire data, or removing rows:** update the CSV in `data/`, then run `python scripts/clean_dataset.py`, `python scripts/compute_thresholds.py` and `python scripts/build_dashboard.py`.
 
-## ArcGIS Online layer (optional)
+## ArcGIS Online layer (not maintained)
 
-`scripts/nops_psa_conditions_update.py` writes the same PSA scores to a hosted feature layer, so an ArcGIS Dashboard can use them. It can run in two ways:
+`scripts/nops_psa_conditions_update.py` and the GitHub Actions workflow were written to push the same scores to a hosted feature layer in ArcGIS Online, "NOPs PSA Fire Weather Conditions" in the `oncc_oscc_scripting` account, for an ArcGIS Dashboard.
 
-- In an ArcGIS Notebook.
-- Anywhere with Python 3 and `pip install arcgis pandas requests`, with the account set in the `AGOL_USER` and `AGOL_PASS` environment variables.
-
-The GitHub Actions workflow is one way to schedule it. Check with your ArcGIS admin before storing a shared account's password as a repository secret.
+That route was set aside on November 23, 2026 in favor of this GitHub Pages dashboard, so the layer isn't updated. The script still scores forecast days from FEMS daily summaries, which run higher than 1300 values. If the ArcGIS route is picked up again, the script should first be brought in line with the page's hourly method.
 
 ## Data sources
 

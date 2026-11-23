@@ -156,7 +156,17 @@ Concern levels are based on the score:
 - High: 4–5
 - Very High: 6–8
 
-Across North Ops, 20% of fire-days at Low were large growth days, compared with 36% at Very High (base rate 27%). Forecast days don't have FFWI or VPDA, so their score is scaled to 8 from the 6 variables available.
+Across North Ops, 20% of fire-days at Low were large growth days, compared with 36% at Very High (base rate 27%). The dashboard builds forecast days from FEMS hourly forecasts, read at 1300 and over each day exactly like the history, so all 8 variables are scored every day.
+
+This replaced FEMS daily forecast summaries on November 23, 2026. Those summaries give daily peak values, which run well above 1300 values. On 10 August 2025 days at 8 NC04 stations, the peaks were higher by:
+
+- ERC: +3
+- BI: +6, about 28%
+- IC: +14, about 57%
+
+100-hr fuel moisture ran 0.7 points lower. As a result, forecast days had cleared thresholds more easily than observed days.
+
+**Weak-guide PSAs.** In NC06, NC07 and NC08 the large growth rate at Very High is less than 10 points above Low. NC07 is 46% at Low and 42% at Very High. The dashboard adds a ⚠ note for these PSAs.
 
 **Fuel gate (added November 23, 2026).** If ERC is below the 5th percentile of the PSA's large growth days, or 100-hr fuel moisture is above the 95th percentile, the level is capped at Low whatever the score. The dashboard marks these days with ⊘.
 
