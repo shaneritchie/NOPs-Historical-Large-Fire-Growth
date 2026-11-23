@@ -147,6 +147,7 @@ const VARS = [["ERC","ERC",">="],["BI","BI",">="],["IC","IC",">="],["FFWI","FFWI
 const OTHER = [["Temp","Temp 1300 (°F)"],["MaxT","Max temp (°F)"],["RH","RH 1300 (%)"],["Wind","Wind 1300 (mph)"],["Rain","Rain 24 h (in)"],["F1000","1000-hr FM (%)"],["SC","SC"]];
 
 let ROWS = [], GEO = {}, NAMES = {}, sel = {psa:"NC04", day:0};
+const DAYS = [0,1,2,3,4,5,6];
 const $ = id => document.getElementById(id);
 const fmt = (v,d=1) => v==null||isNaN(v) ? "–" : (Math.abs(v)>=100? Math.round(v).toLocaleString() : (+v).toFixed(d).replace(/\.0$/,""));
 
@@ -224,10 +225,12 @@ async function loadAll(){
   const base = dstr(o - 8*3600e3);
   try{
     const geoP = Object.keys(GEO).length ? null : fetch(PSA_URL+"?where="+encodeURIComponent("PSANationalCode IN ('"+PSAS.join("','")+"')")+"&outFields=PSANationalCode,PSANAME&outSR=4326&maxAllowableOffset=0.004&geometryPrecision=3&f=json").then(r=>r.json());
-    const res = await Promise.allSettled(PSAS.map(p=>loadPSA(p,o,base)));
-    ROWS = res.flatMap(r=>r.status==="fulfilled"?r.value:[]);
-    const failed = PSAS.filter((p,i)=>res[i].status!=="fulfilled");
     if (geoP){ const g = await geoP; (g.features||[]).forEach(f=>{GEO[f.attributes.PSANationalCode]=f.geometry.rings;NAMES[f.attributes.PSANationalCode]=f.attributes.PSANAME;}); }
+    ROWS = []; let done = 0; const t0 = Date.now();
+    const prog = () => { $("sub").textContent = `Loading RAWS data from FEMS… ${done} of ${PSAS.length} PSAs (FEMS can take up to a minute)`; };
+    prog(); render();
+    const res = await Promise.allSettled(PSAS.map(p=>loadPSA(p,o,base).then(rows=>{ROWS=ROWS.concat(rows);return rows;}).finally(()=>{done++;prog();render();})));
+    const failed = PSAS.filter((p,i)=>res[i].status!=="fulfilled");
     const obsLocal = new Date(o).toLocaleString([], {weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit",timeZoneName:"short"});
     $("sub").textContent = `Observed ${obsLocal} (1300 PST) · forecasts through ${dstr(Date.parse(base)+6*864e5)} · loaded ${new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}`;
     if (failed.length){ $("statusCard").style.display=""; $("status").className="status err"; $("status").textContent=`Could not load FEMS data for ${failed.join(", ")}. Try Refresh.`; }
@@ -249,7 +252,7 @@ const dayName = d => { const r = ROWS.find(x=>x.Day===d); if(!r) return d===0?"T
 function render(){ renderDays(); renderMap(); renderOutlook(); renderDetail(); renderDist(); renderHist(); }
 
 function renderDays(){
-  const days=[...new Set(ROWS.map(r=>r.Day))].sort((a,b)=>a-b);
+  const days=DAYS;
   $("days").innerHTML = days.map(d=>`<button type="button" aria-pressed="${d===sel.day}" data-d="${d}">${dayName(d)}</button>`).join("");
   $("days").querySelectorAll("button").forEach(b=>b.onclick=()=>{sel.day=+b.dataset.d;render();});
   $("legend").innerHTML = LEVELS.map(([n,l,s])=>`<span><i class="sw" style="background:var(--${s})"></i>${l} (${n}${n===6?"–8":"–"+(n+1)})</span>`).join("")+`<span><i class="sw" style="background:var(--nodata)"></i>No data</span>`;
@@ -289,7 +292,7 @@ function renderMap(){
 }
 
 function renderOutlook(){
-  const days=[...new Set(ROWS.map(r=>r.Day))].sort((a,b)=>a-b);
+  const days=DAYS;
   let h=`<thead><tr><th>PSA</th>${days.map(d=>`<th>${dayName(d)}</th>`).join("")}</tr></thead><tbody>`;
   for (const p of PSAS){
     h+=`<tr><td><b>${p}</b><div class="muted" style="font-size:11.5px">${NAMES[p]||""}</div></td>`;
