@@ -396,16 +396,16 @@ function fuelCompare(psa, v, x){
   const pct=k=>` (${Math.round(k/n*100)}%)`;
   const label = v==="ERC" ? `ERC ${fmt(x)}` : `100-hr ${fmt(x)}%`;
   if (v==="ERC"){
-    if (lower===n) return `${label}: lower than on all ${n} past ${psa} large growth days`;
-    if (higher===n) return `${label}: higher than on all ${n} past ${psa} large growth days`;
-    return lower>=higher ? `${label}: lower than on ${lower} of ${n} past ${psa} large growth days${pct(lower)}`
-                         : `${label}: higher than on ${higher} of ${n} past ${psa} large growth days${pct(higher)}`;
+    if (lower===n) return `${label}, which is lower than on all ${n} past ${psa} large growth days`;
+    if (higher===n) return `${label}, which is higher than on all ${n} past ${psa} large growth days`;
+    return lower>=higher ? `${label}, which is lower than on ${lower} of ${n} past ${psa} large growth days${pct(lower)}`
+                         : `${label}, which is higher than on ${higher} of ${n} past ${psa} large growth days${pct(higher)}`;
   }
   // 100-hr fuel moisture: higher = wetter
-  if (higher===n) return `${label}: wetter than on all ${n} past ${psa} large growth days`;
-  if (lower===n) return `${label}: drier than on all ${n} past ${psa} large growth days`;
-  return higher>=lower ? `${label}: wetter than on ${higher} of ${n} past ${psa} large growth days${pct(higher)}`
-                       : `${label}: drier than on ${lower} of ${n} past ${psa} large growth days${pct(lower)}`;
+  if (higher===n) return `${label}, which is wetter than on all ${n} past ${psa} large growth days`;
+  if (lower===n) return `${label}, which is drier than on all ${n} past ${psa} large growth days`;
+  return higher>=lower ? `${label}, which is wetter than on ${higher} of ${n} past ${psa} large growth days${pct(higher)}`
+                       : `${label}, which is drier than on ${lower} of ${n} past ${psa} large growth days${pct(lower)}`;
 }
 function fuelLines(psa, r){ return ["ERC","F100"].map(v=>fuelCompare(psa,v,r[v])).filter(Boolean).join("<br>"); }
 function rateText(psa, r){
