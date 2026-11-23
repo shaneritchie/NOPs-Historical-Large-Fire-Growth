@@ -156,7 +156,7 @@ Concern levels are based on the score:
 - High: 4–5
 - Very High: 6–8
 
-Across North Ops, 19% of fire-days at Low were large growth days, compared with 36% at Very High (base rate 27%). Forecast days don't have FFWI or VPDA, so their score is scaled to 8 from the 6 variables available.
+Across North Ops, 20% of fire-days at Low were large growth days, compared with 36% at Very High (base rate 27%). Forecast days don't have FFWI or VPDA, so their score is scaled to 8 from the 6 variables available.
 
 **Fuel gate (added November 23, 2026).** If ERC is below the 5th percentile of the PSA's large growth days, or 100-hr fuel moisture is above the 95th percentile, the level is capped at Low whatever the score. The dashboard marks these days with ⊘.
 
